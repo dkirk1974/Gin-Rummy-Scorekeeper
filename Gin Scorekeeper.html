@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gin Rummy Scorer - Nancy & Darren</title>
+  <style>
+    :root { --p1-color: #2563eb; --p2-color: #dc2626; --bg: #f8fafc; --card: #ffffff; }
+    html { scroll-behavior: smooth; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 16px; color: #1e293b; max-width: 600px; margin: auto; padding-bottom: 80px; }
+    
+    /* Navigation Tabs */
+    .nav-bar { display: flex; gap: 8px; margin-bottom: 16px; position: sticky; top: 0; background: var(--bg); padding-top: 4px; z-index: 10; }
+    .nav-btn { flex: 1; padding: 12px; border: none; background: #e2e8f0; color: #475569; font-weight: bold; border-radius: 8px; cursor: pointer; text-align: center; }
+    .nav-btn.active { background: #0f172a; color: white; }
+
+    /* Page Toggling */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Card Layout */
+    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    h2, h3 { margin-top: 0; margin-bottom: 12px; }
+    .score-board { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: center; }
+    .score-box { padding: 12px; border-radius: 8px; color: white; }
+    .p1-bg { background: var(--p1-color); }
+    .p2-bg { background: var(--p2-color); }
+    .big-score { font-size: 2.5rem; font-weight: bold; margin: 4px 0; }
+    .target-badge { font-size: 0.85rem; color: #64748b; text-align: center; font-weight: 600; margin-bottom: 12px; }
+    
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 8px; color: #64748b; }
+    input, select, button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-top: 4px; font-size: 1rem; }
+    button.action-btn { background: #0f172a; color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 12px; }
+    button.secondary { background: #64748b; color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 12px; }
+    button.danger { background: #dc2626; color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85rem; }
+    th, td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f1f5f9; text-align: center; }
+    td:first-child, th:first-child { text-align: left; }
+
+    /* Table of Contents Styling */
+    .toc-container { background: #f1f5f9; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+    .toc-title { font-weight: bold; margin-bottom: 8px; font-size: 0.95rem; color: #0f172a; }
+    .toc-list { list-style: none; padding: 0; margin: 0; }
+    .toc-list li { margin-bottom: 6px; }
+    .toc-list a { color: #2563eb; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+    .toc-list a:hover { text-decoration: underline; }
+
+    /* Rules Sections */
+    .rule-section { scroll-margin-top: 70px; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
+    .rule-section:last-child { border-bottom: none; }
+    .rule-box { background: #f1f5f9; border-left: 4px solid #2563eb; padding: 10px; margin-top: 8px; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+    ul { margin: 6px 0; padding-left: 20px; font-size: 0.9rem; }
+    li { margin-bottom: 6px; }
+
+    /* Floating Return to Top Button */
+    .float-top-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #0f172a;
+      color: white;
+      border: none;
+      font-size: 1.4rem;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    /* Dynamic Outcome Preview Banner */
+    .preview-banner {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    .preview-knock { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .preview-undercut { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+    /* Modal Overlay Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px 20px;
+      text-align: center;
+      max-width: 320px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-icon { font-size: 3.5rem; margin-bottom: 4px; }
+    .modal-card h2 { color: #0f172a; font-size: 1.5rem; margin-bottom: 8px; }
+    .modal-card p { color: #475569; font-size: 0.95rem; margin-top: 0; margin-bottom: 16px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+
+  <div class="nav-bar" id="topAnchor">
+    <button class="nav-btn active" id="tabScorer" onclick="showPage('scorerPage')">Scorekeeper</button>
+    <button class="nav-btn" id="tabRules" onclick="showPage('rulesPage')">Rules & Reference</button>
+  </div>
+
+  <div id="scorerPage" class="page active">
+    <div class="card">
+      <h2>Gin Rummy Match</h2>
+      <div class="target-badge" id="targetBadge">Target: 100 Points</div>
+      
+      <div class="score-board">
+        <div class="score-box p1-bg">
+          <div>Nancy</div>
+          <div class="big-score" id="p1Score">0</div>
+        </div>
+        <div class="score-box p2-bg">
+          <div>Darren</div>
+          <div class="big-score" id="p2Score">0</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+        <label>Game Type / Win Condition</label>
+        <select id="gameModeSelect" onchange="handleGameModeChange()">
+          <option value="100">Traditional (First to 100 Pts)</option>
+          <option value="custom">Custom Target Score</option>
+          <option value="endless">Endless / Open-Ended</option>
+        </select>
+
+        <div id="customTargetWrapper" style="display: none; margin-top: 8px;">
+          <label>Target Score Needed to Win</label>
+          <input type="number" id="customTargetInput" value="250" min="10" step="10" oninput="handleGameModeChange()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Record Hand</h3>
+      <form id="handForm">
+        <label>Result Type</label>
+        <select id="typeSelect" onchange="handleFormState()">
+          <option value="gin" selected>Gin (+25 Bonus)</option>
+          <option value="knock">Knock</option>
+        </select>
+
+        <div id="ginSection">
+          <label>Who Went Gin?</label>
+          <select id="ginWinnerSelect">
+            <option value="nancy">Nancy</option>
+            <option value="darren">Darren</option>
+          </select>
+
+          <label>Opponent's Deadwood</label>
+          <input type="number" id="ginDefenderValue" value="10" min="0">
+        </div>
+
+        <div id="knockSection" style="display: none;">
+          <label>Who Knocked?</label>
+          <select id="knockerSelect" onchange="calculateKnockOutcome()">
+            <option value="nancy">Nancy</option>
+            <option value="darren">Darren</option>
+          </select>
+
+          <div class="grid-2">
+            <div>
+              <label>Knocker Deadwood</label>
+              <input type="number" id="knockerValue" value="4" min="0" max="10" oninput="calculateKnockOutcome()">
+            </div>
+            <div>
+              <label>Defender Deadwood</label>
+              <input type="number" id="defenderValue" value="15" min="0" oninput="calculateKnockOutcome()">
+            </div>
+          </div>
+
+          <div id="knockPreviewBanner" class="preview-banner preview-knock">
+            Nancy wins 11 pts (Successful Knock)
+          </div>
+        </div>
+
+        <button type="submit" class="action-btn">Add Hand Points</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Current Game Statistics</h3>
+      <div id="gameStats">No hands played yet in current game.</div>
+      <button class="secondary" onclick="finishGame()">Finish & Archive Game</button>
+    </div>
+
+    <div class="card">
+      <h3>Lifetime Statistics</h3>
+      <div id="lifetimeStats">Loading historical data...</div>
+      <button class="danger" onclick="showResetModal()">Clear Historical Stats</button>
+    </div>
+  </div>
+
+  <div id="rulesPage" class="page">
+    <div class="card">
+      <h2>Complete Gin Rummy Rules</h2>
+
+      <div class="toc-container">
+        <div class="toc-title">Table of Contents</div>
+        <ul class="toc-list">
+          <li><a href="#rule-setup">1. Game Objective & Setup</a></li>
+          <li><a href="#rule-melds">2. Melds & Card Values</a></li>
+          <li><a href="#rule-gameplay">3. Turn Gameplay (Draw & Discard)</a></li>
+          <li><a href="#rule-knocking">4. Knocking & Going Gin</a></li>
+          <li><a href="#rule-layoffs">5. Laying Off Cards (Defender Rule)</a></li>
+          <li><a href="#rule-scoring">6. Scoring & Undercut Rules</a></li>
+          <li><a href="#rule-match">7. Winning the Match</a></li>
+        </ul>
+      </div>
+
+      <div id="rule-setup" class="rule-section">
+        <h3>1. Game Objective & Setup</h3>
+        <p>The objective of Gin Rummy is to form matched sets/runs of cards and reduce unmatched cards ("deadwood") in your hand.</p>
+        <ul>
+          <li><strong>Deck:</strong> Standard 52-card deck (Aces are always low).</li>
+          <li><strong>Deal:</strong> Each player is dealt 10 cards.</li>
+          <li><strong>Piles:</strong> The remaining cards form the face-down Stock. The top card is turned face up to start the Discard pile.</li>
+        </ul>
+      </div>
+
+      <div id="rule-melds" class="rule-section">
+        <h3>2. Melds & Card Values</h3>
+        <p>Melds are groups of valid card combinations. A card can only belong to one meld at a time.</p>
+        <ul>
+          <li><strong>Sets (Groups):</strong> 3 or 4 cards of the same rank (e.g., 8♠-8♥-8♦).</li>
+          <li><strong>Runs (Sequences):</strong> 3 or more consecutive cards in the same suit (e.g., 4♣-5♣-6♣). <em>Note: Aces are strictly low (A-2-3 is valid; K-A-2 is illegal).</em></li>
+        </ul>
+        <div class="rule-box">
+          <strong>Deadwood Card Values:</strong><br>
+          • <strong>Aces:</strong> 1 point<br>
+          • <strong>Number Cards (2–10):</strong> Face value<br>
+          • <strong>Face Cards (J, Q, K):</strong> 10 points each
+        </div>
+      </div>
+
+      <div id="rule-gameplay" class="rule-section">
+        <h3>3. Turn Gameplay</h3>
+        <p>Players alternate turns taking the following actions in strict sequence:</p>
+        <ul>
+          <li><strong>1. Draw:</strong> Take the top card from either the face-down Stock pile or the face-up Discard pile.</li>
+          <li><strong>2. Discard:</strong> Place 1 card face-up onto the Discard pile. <em>(You cannot discard the exact card you just picked up from the discard pile on the same turn).</em></li>
+        </ul>
+      </div>
+
+      <div id="rule-knocking" class="rule-section">
+        <h3>4. Knocking & Going Gin</h3>
+        <p>You may end the hand on your turn after drawing and before discarding if your remaining deadwood meets the threshold:</p>
+        <ul>
+          <li><strong>Knocking:</strong> You can knock if your unmatched deadwood totals <strong>10 points or less</strong>. You discard one card face-down and lay your melds on the table.</li>
+          <li><strong>Going Gin:</strong> Knocking with <strong>0 points of deadwood</strong>. You get a 25-point bonus, and the defender is blocked from laying off any cards.</li>
+        </ul>
+      </div>
+
+      <div id="rule-layoffs" class="rule-section">
+        <h3>5. Laying Off Cards</h3>
+        <div class="rule-box">
+          <strong>The Defender's Advantage:</strong> When a player knocks (not Gin), the defender gets to attach their own deadwood cards onto the knocker's melds to drop their count.
+        </div>
+        <ul>
+          <li><strong>Extending Runs:</strong> Attaching a 6♥ or 10♥ to a knocker's 7♥-8♥-9♥ run.</li>
+          <li><strong>Completing Sets:</strong> Attaching a fourth Jack to the knocker's three-Jack set.</li>
+          <li><strong>Rule:</strong> Only the defender can lay off onto the knocker's cards. The knocker cannot lay off onto defender cards.</li>
+        </ul>
+      </div>
+
+      <div id="rule-scoring" class="rule-section">
+        <h3>6. Scoring & Undercut Rules</h3>
+        <p>After laying off, players tally remaining deadwood points:</p>
+        <div class="rule-box">
+          <strong>Standard Knock:</strong> Knocker Deadwood &lt; Defender Deadwood<br>
+          <em>Knocker Scores = Defender Deadwood - Knocker Deadwood</em>
+        </div>
+        <div class="rule-box">
+          <strong>Undercut:</strong> Defender Deadwood &le; Knocker Deadwood<br>
+          <em>Defender Scores = (Knocker Deadwood - Defender Deadwood) + 25 Bonus</em><br>
+          <small>*Note: Defender wins all ties automatically.</small>
+        </div>
+        <div class="rule-box">
+          <strong>Going Gin:</strong> Knocker Deadwood = 0<br>
+          <em>Knocker Scores = Defender Deadwood + 25 Bonus (No Lay Offs)</em>
+        </div>
+      </div>
+
+      <div id="rule-match" class="rule-section">
+        <h3>7. Winning the Match</h3>
+        <p>Hands are played sequentially until a player reaches the designated target score or players decide to finish an open-ended game.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <button class="float-top-btn" onclick="scrollToTop()" title="Return to Top">↑</button>
+
+  <div id="winnerModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon">🏆</div>
+      <h2 id="modalWinnerTitle">Nancy Wins!</h2>
+      <p id="modalWinnerSub">Scored 105 points to cross the target!</p>
+      <button class="action-btn" onclick="closeWinnerModal()">Archive & Start New Game</button>
+    </div>
+  </div>
+
+  <div id="resetModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon">⚠️</div>
+      <h2>Clear All Stats?</h2>
+      <p>Are you sure you want to permanently delete all historical match wins, hand win percentages, and streaks? <strong>This action cannot be undone.</strong></p>
+      <div class="grid-2">
+        <button class="secondary" style="margin-top:0;" onclick="closeResetModal()">Cancel</button>
+        <button class="danger" style="margin-top:0;" onclick="confirmResetStats()">Yes, Erase All</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(pageId).classList.add('active');
+      if (pageId === 'scorerPage') document.getElementById('tabScorer').classList.add('active');
+      if (pageId === 'rulesPage') document.getElementById('tabRules').classList.add('active');
+      
+      scrollToTop();
+    }
+
+    // Toggle Input Sections for Gin vs Knock
+    function handleFormState() {
+      const type = document.getElementById('typeSelect').value;
+      const ginSec = document.getElementById('ginSection');
+      const knockSec = document.getElementById('knockSection');
+
+      if (type === 'gin') {
+        ginSec.style.display = 'block';
+        knockSec.style.display = 'none';
+      } else {
+        ginSec.style.display = 'none';
+        knockSec.style.display = 'block';
+        calculateKnockOutcome();
+      }
+    }
+
+    // Dynamic Outcome Calculation & Preview Banner Update
+    function calculateKnockOutcome() {
+      const knockerKey = document.getElementById('knockerSelect').value;
+      const defenderKey = knockerKey === 'nancy' ? 'darren' : 'nancy';
+      
+      const knockerName = knockerKey === 'nancy' ? 'Nancy' : 'Darren';
+      const defenderName = defenderKey === 'nancy' ? 'Nancy' : 'Darren';
+
+      const kW = parseInt(document.getElementById('knockerValue').value) || 0;
+      const dW = parseInt(document.getElementById('defenderValue').value) || 0;
+
+      const banner = document.getElementById('knockPreviewBanner');
+
+      if (kW < dW) {
+        // Successful Knock
+        const pts = dW - kW;
+        banner.className = 'preview-banner preview-knock';
+        banner.innerText = `👍 ${knockerName} wins ${pts} pts (Successful Knock)`;
+        return { winner: knockerKey, loser: defenderKey, pts: pts, loserDw: dW };
+      } else {
+        // Undercut!
+        const pts = (kW - dW) + 25;
+        banner.className = 'preview-banner preview-undercut';
+        banner.innerText = `⚡ UNDERCUT! ${defenderName} wins ${pts} pts (+25 Bonus)`;
+        return { winner: defenderKey, loser: knockerKey, pts: pts, loserDw: kW };
+      }
+    }
+
+    // Modal Control Functions
+    function showWinnerModal(winner, score, target) {
+      document.getElementById('modalWinnerTitle').innerText = `🎉 ${winner} Wins! 🎉`;
+      document.getElementById('modalWinnerSub').innerText = `${winner} reached ${score} points! (Target was ${target})`;
+      document.getElementById('winnerModal').classList.add('active');
+    }
+
+    function closeWinnerModal() {
+      document.getElementById('winnerModal').classList.remove('active');
+      finishGame();
+    }
+
+    function showResetModal() {
+      document.getElementById('resetModal').classList.add('active');
+    }
+
+    function closeResetModal() {
+      document.getElementById('resetModal').classList.remove('active');
+    }
+
+    function confirmResetStats() {
+      lifetime = {
+        gamesPlayed: 0,
+        nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
+        darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
+      };
+      localStorage.setItem('gin_stats_nd', JSON.stringify(lifetime));
+      updateUI();
+      closeResetModal();
+    }
+
+    // App Storage & State
+    const defaultLifetime = {
+      gamesPlayed: 0,
+      nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
+      darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
+    };
+
+    let lifetime = JSON.parse(localStorage.getItem('gin_stats_nd')) || defaultLifetime;
+
+    let currentGame = {
+      nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+      darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+      handsPlayed: 0
+    };
+
+    function handleGameModeChange() {
+      const mode = document.getElementById('gameModeSelect').value;
+      const customWrapper = document.getElementById('customTargetWrapper');
+      const badge = document.getElementById('targetBadge');
+
+      if (mode === '100') {
+        customWrapper.style.display = 'none';
+        badge.innerText = 'Target: First to 100 Points';
+      } else if (mode === 'custom') {
+        customWrapper.style.display = 'block';
+        const customVal = parseInt(document.getElementById('customTargetInput').value) || 100;
+        badge.innerText = `Target: First to ${customVal} Points`;
+      } else if (mode === 'endless') {
+        customWrapper.style.display = 'none';
+        badge.innerText = 'Target: Endless / Open-Ended Game';
+      }
+    }
+
+    document.getElementById('handForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const type = document.getElementById('typeSelect').value;
+      
+      let winner, loser, pts, loserDw;
+
+      if (type === 'gin') {
+        winner = document.getElementById('ginWinnerSelect').value;
+        loser = winner === 'nancy' ? 'darren' : 'nancy';
+        loserDw = parseInt(document.getElementById('ginDefenderValue').value) || 0;
+        pts = loserDw + 25;
+      } else {
+        const result = calculateKnockOutcome();
+        winner = result.winner;
+        loser = result.loser;
+        pts = result.pts;
+        loserDw = result.loserDw;
+      }
+
+      currentGame[winner].score += pts;
+      currentGame[winner].handsWon += 1;
+      currentGame[winner].totalPoints += pts;
+      currentGame[loser].totalDeadwoodCaught += loserDw;
+      currentGame[loser].handsLost += 1;
+      currentGame.handsPlayed += 1;
+
+      lifetime[winner].handsWon += 1;
+      lifetime[winner].totalPoints += pts;
+      lifetime[loser].totalDeadwoodCaught += loserDw;
+      lifetime[loser].handsLost += 1;
+      if (pts > lifetime[winner].biggestHand) {
+        lifetime[winner].biggestHand = pts;
+      }
+
+      localStorage.setItem('gin_stats_nd', JSON.stringify(lifetime));
+      updateUI();
+
+      // Check Automatic Win Threshold
+      const mode = document.getElementById('gameModeSelect').value;
+      let target = null;
+      if (mode === '100') target = 100;
+      else if (mode === 'custom') target = parseInt(document.getElementById('customTargetInput').value) || 100;
+
+      if (target !== null) {
+        if (currentGame.nancy.score >= target || currentGame.darren.score >= target) {
+          const matchWinner = currentGame.nancy.score >= target ? 'Nancy' : 'Darren';
+          const winnerScore = currentGame[matchWinner.toLowerCase()].score;
+          
+          setTimeout(() => {
+            showWinnerModal(matchWinner, winnerScore, target);
+          }, 150);
+        }
+      }
+    });
+
+    function finishGame() {
+      if (currentGame.handsPlayed === 0) return;
+      
+      lifetime.gamesPlayed += 1;
+
+      if (currentGame.nancy.score > currentGame.darren.score) {
+        lifetime.nancy.matchWins += 1;
+        lifetime.nancy.currentStreak += 1;
+        lifetime.darren.currentStreak = 0;
+        if (lifetime.nancy.currentStreak > lifetime.nancy.maxStreak) {
+          lifetime.nancy.maxStreak = lifetime.nancy.currentStreak;
+        }
+      } else if (currentGame.darren.score > currentGame.nancy.score) {
+        lifetime.darren.matchWins += 1;
+        lifetime.darren.currentStreak += 1;
+        lifetime.nancy.currentStreak = 0;
+        if (lifetime.darren.currentStreak > lifetime.darren.maxStreak) {
+          lifetime.darren.maxStreak = lifetime.darren.currentStreak;
+        }
+      }
+
+      localStorage.setItem('gin_stats_nd', JSON.stringify(lifetime));
+      
+      currentGame = {
+        nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+        darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+        handsPlayed: 0
+      };
+
+      updateUI();
+    }
+
+    function updateUI() {
+      document.getElementById('p1Score').innerText = currentGame.nancy.score;
+      document.getElementById('p2Score').innerText = currentGame.darren.score;
+
+      const totalH = currentGame.handsPlayed;
+      if (totalH > 0) {
+        const nWinPct = ((currentGame.nancy.handsWon / totalH) * 100).toFixed(1);
+        const dWinPct = ((currentGame.darren.handsWon / totalH) * 100).toFixed(1);
+        const nAvgPts = currentGame.nancy.handsWon ? (currentGame.nancy.totalPoints / currentGame.nancy.handsWon).toFixed(1) : '0.0';
+        const dAvgPts = currentGame.darren.handsWon ? (currentGame.darren.totalPoints / currentGame.darren.handsWon).toFixed(1) : '0.0';
+        const nAvgDw = currentGame.nancy.handsLost ? (currentGame.nancy.totalDeadwoodCaught / currentGame.nancy.handsLost).toFixed(1) : '0.0';
+        const dAvgDw = currentGame.darren.handsLost ? (currentGame.darren.totalDeadwoodCaught / currentGame.darren.handsLost).toFixed(1) : '0.0';
+
+        document.getElementById('gameStats').innerHTML = `
+          <table>
+            <tr><th>Metric</th><th>Nancy</th><th>Darren</th></tr>
+            <tr><td>Hands Won</td><td>${currentGame.nancy.handsWon}</td><td>${currentGame.darren.handsWon}</td></tr>
+            <tr><td>Hand Win %</td><td>${nWinPct}%</td><td>${dWinPct}%</td></tr>
+            <tr><td>Avg Pts / Hand Won</td><td>${nAvgPts}</td><td>${dAvgPts}</td></tr>
+            <tr><td>Avg Deadwood Caught With</td><td>${nAvgDw} pts</td><td>${dAvgDw} pts</td></tr>
+          </table>
+        `;
+      } else {
+        document.getElementById('gameStats').innerText = "No hands played yet in current game.";
+      }
+
+      const totalG = lifetime.gamesPlayed;
+      const totalLifetimeHands = lifetime.nancy.handsWon + lifetime.darren.handsWon;
+
+      const nGameWinPct = totalG ? ((lifetime.nancy.matchWins / totalG) * 100).toFixed(1) : '0.0';
+      const dGameWinPct = totalG ? ((lifetime.darren.matchWins / totalG) * 100).toFixed(1) : '0.0';
+
+      const nLifeHandWinPct = totalLifetimeHands ? ((lifetime.nancy.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
+      const dLifeHandWinPct = totalLifetimeHands ? ((lifetime.darren.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
+
+      const nLifeAvgPts = lifetime.nancy.handsWon ? (lifetime.nancy.totalPoints / lifetime.nancy.handsWon).toFixed(1) : '0.0';
+      const dLifeAvgPts = lifetime.darren.handsWon ? (lifetime.darren.totalPoints / lifetime.darren.handsWon).toFixed(1) : '0.0';
+
+      const nLifeAvgDw = lifetime.nancy.handsLost ? (lifetime.nancy.totalDeadwoodCaught / lifetime.nancy.handsLost).toFixed(1) : '0.0';
+      const dLifeAvgDw = lifetime.darren.handsLost ? (lifetime.darren.totalDeadwoodCaught / lifetime.darren.handsLost).toFixed(1) : '0.0';
+
+      document.getElementById('lifetimeStats').innerHTML = `
+        <p style="margin-bottom:8px;"><strong>Total Games Played:</strong> ${totalG}</p>
+        <table>
+          <tr><th>Lifetime Metric</th><th>Nancy</th><th>Darren</th></tr>
+          <tr><td>Match Wins (Win %)</td><td>${lifetime.nancy.matchWins} (${nGameWinPct}%)</td><td>${lifetime.darren.matchWins} (${dGameWinPct}%)</td></tr>
+          <tr><td>Hand Win %</td><td>${nLifeHandWinPct}%</td><td>${dLifeHandWinPct}%</td></tr>
+          <tr><td>Avg Pts / Hand Won</td><td>${nLifeAvgPts}</td><td>${dLifeAvgPts}</td></tr>
+          <tr><td>Avg Deadwood Caught With</td><td>${nLifeAvgDw} pts</td><td>${dLifeAvgDw} pts</td></tr>
+          <tr><td>Biggest Hand Score</td><td>${lifetime.nancy.biggestHand} pts</td><td>${lifetime.darren.biggestHand} pts</td></tr>
+          <tr><td>Current Win Streak</td><td>${lifetime.nancy.currentStreak}</td><td>${lifetime.darren.currentStreak}</td></tr>
+          <tr><td>Longest Win Streak</td><td>${lifetime.nancy.maxStreak}</td><td>${lifetime.darren.maxStreak}</td></tr>
+        </table>
+      `;
+    }
+
+    // Initial setup on page load
+    handleGameModeChange();
+    handleFormState();
+    updateUI();
+  </script>
+</body>
+</html>
