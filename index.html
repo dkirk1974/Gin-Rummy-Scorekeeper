@@ -28,7 +28,14 @@
       } else {
         ginSec.style.display = 'none';
         knockSec.style.display = 'block';
-        calculateKnockOutcome();
+        
+        const kWVal = document.getElementById('knockerValue').value;
+        const dWVal = document.getElementById('defenderValue').value;
+        if (kWVal === '' || dWVal === '') {
+          banner.style.display = 'none';
+        } else {
+          calculateKnockOutcome();
+        }
       }
     }
 
@@ -41,14 +48,22 @@
         return null;
       }
 
+      const kWVal = document.getElementById('knockerValue').value;
+      const dWVal = document.getElementById('defenderValue').value;
+
+      if (kWVal === '' || dWVal === '') {
+        banner.style.display = 'none';
+        return null;
+      }
+
       const knockerKey = document.getElementById('knockerSelect').value;
       const defenderKey = knockerKey === 'nancy' ? 'darren' : 'nancy';
       
       const knockerName = knockerKey === 'nancy' ? 'Nancy' : 'Darren';
       const defenderName = defenderKey === 'nancy' ? 'Nancy' : 'Darren';
 
-      const kW = parseInt(document.getElementById('knockerValue').value) || 0;
-      const dW = parseInt(document.getElementById('defenderValue').value) || 0;
+      const kW = parseInt(kWVal) || 0;
+      const dW = parseInt(dWVal) || 0;
 
       banner.style.display = 'block';
 
