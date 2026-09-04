@@ -1,4 +1,334 @@
-<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gin Rummy Scorer</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --accent: #f59e0b;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 70px; }
+
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 { font-size: 1.25rem; font-weight: 700; color: var(--primary); }
+
+    .container { max-width: 600px; margin: 0 auto; padding: 1rem; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .score-board {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1rem;
+      align-items: center;
+      text-align: center;
+    }
+
+    .player-col h3 { font-size: 1rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .score-val { font-size: 2.5rem; font-weight: 800; color: var(--primary); }
+    .vs { font-weight: bold; color: var(--text-muted); font-size: 0.9rem; }
+
+    .target-badge {
+      text-align: center;
+      background: #eff6ff;
+      color: var(--primary);
+      padding: 0.5rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.75rem;
+    }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-muted); }
+    
+    select, input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #fff;
+    }
+
+    button {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.85rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--primary-dark); }
+
+    .btn-secondary { background: #e2e8f0; color: var(--text); margin-top: 0.5rem; }
+    .btn-secondary:hover { background: #cbd5e1; }
+    
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #dc2626; }
+
+    .preview-banner {
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .preview-knock { background: #ecfdf5; color: #047857; }
+    .preview-undercut { background: #fff1f2; color: #be123c; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
+    th, td { padding: 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 600; color: var(--text-muted); }
+
+    nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 0.5rem;
+      z-index: 10;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.5rem;
+      flex: 1;
+    }
+    .nav-btn.active { color: var(--primary); }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal-content h2 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--primary); }
+    .modal-content p { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+
+    #fxCanvas {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 99;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="fxCanvas"></canvas>
+
+  <header>
+    <h1>Gin Rummy Companion</h1>
+  </header>
+
+  <div class="container">
+
+    <div id="scorerPage" class="page active">
+      <div class="card">
+        <div class="score-board">
+          <div class="player-col">
+            <h3>Nancy</h3>
+            <div id="p1Score" class="score-val">0</div>
+          </div>
+          <div class="vs">VS</div>
+          <div class="player-col">
+            <h3>Darren</h3>
+            <div id="p2Score" class="score-val">0</div>
+          </div>
+        </div>
+        <div id="targetBadge" class="target-badge">Target: First to 100 Points</div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 1rem;">Record New Hand</h2>
+        
+        <form id="handForm">
+          <div class="form-group">
+            <label for="gameModeSelect">Game Mode / Target</label>
+            <select id="gameModeSelect" onchange="handleGameModeChange()">
+              <option value="100">First to 100 Points</option>
+              <option value="custom">Custom Target Score</option>
+              <option value="endless">Endless Match</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="customTargetWrapper" style="display:none;">
+            <label for="customTargetInput">Custom Target Score</label>
+            <input type="number" id="customTargetInput" value="250" min="50" step="25" onchange="handleGameModeChange()">
+          </div>
+
+          <div class="form-group">
+            <label for="typeSelect">Win Type</label>
+            <select id="typeSelect" onchange="handleFormState()">
+              <option value="gin">Gin Hand (Winner gets Deadwood + 25 Bonus)</option>
+              <option value="knock">Knock / Undercut</option>
+            </select>
+          </div>
+
+          <div id="ginSection" class="form-group">
+            <label for="ginWinnerSelect">Hand Winner</label>
+            <select id="ginWinnerSelect">
+              <option value="nancy">Nancy</option>
+              <option value="darren">Darren</option>
+            </select>
+            <label for="ginDefenderValue" style="margin-top: 0.75rem;">Defender's Deadwood Points</label>
+            <input type="number" id="ginDefenderValue" value="0" min="0" max="100">
+          </div>
+
+          <div id="knockSection" class="form-group" style="display:none;">
+            <label for="knockerSelect">Who Knocked?</label>
+            <select id="knockerSelect" onchange="calculateKnockOutcome()">
+              <option value="nancy">Nancy</option>
+              <option value="darren">Darren</option>
+            </select>
+
+            <label for="knockerValue" style="margin-top: 0.75rem;">Knocker's Deadwood Count</label>
+            <input type="number" id="knockerValue" value="0" min="0" max="100" oninput="calculateKnockOutcome()">
+
+            <label for="defenderValue" style="margin-top: 0.75rem;">Defender's Deadwood Count</label>
+            <input type="number" id="defenderValue" value="0" min="0" max="100" oninput="calculateKnockOutcome()">
+          </div>
+
+          <div id="knockPreviewBanner" class="preview-banner preview-knock" style="display:none;"></div>
+
+          <button type="submit">Submit Hand</button>
+        </form>
+
+        <button id="undoBtn" class="btn-secondary" onclick="undoLastHand()" style="display:none;">↩ Undo Last Entry</button>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Current Game Statistics</h2>
+        <div id="gameStats">No hands played yet in current game.</div>
+      </div>
+    </div>
+
+    <div id="statsPage" class="page">
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">All-Time Lifetime Stats</h2>
+        <div id="lifetimeStats">Loading stats...</div>
+        <button class="btn-danger" onclick="showResetModal()" style="margin-top: 1rem;">Reset Lifetime Statistics</button>
+      </div>
+    </div>
+
+    <div id="rulesPage" class="page">
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Gin Rummy Scoring Rules</h2>
+        <p style="font-size: 0.9rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 0.5rem;">
+          <strong>Gin:</strong> The gin holder scores the defender's total deadwood points plus a 25-point box bonus.
+        </p>
+        <p style="font-size: 0.9rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 0.5rem;">
+          <strong>Knock:</strong> If the knocker's deadwood is lower than the defender's, the knocker wins the difference in points.
+        </p>
+        <p style="font-size: 0.9rem; line-height: 1.5; color: var(--text-muted);">
+          <strong>Undercut:</strong> If the defender's deadwood is less than or equal to the knocker's, the defender scores the difference plus a 25-point bonus.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <nav>
+    <button id="tabScorer" class="nav-btn active" onclick="showPage('scorerPage')">Scorer</button>
+    <button id="tabStats" class="nav-btn" onclick="showPage('statsPage')">Lifetime Stats</button>
+    <button id="tabRules" class="nav-btn" onclick="showPage('rulesPage')">Rules</button>
+  </nav>
+
+  <div id="winnerModal" class="modal">
+    <div class="modal-content">
+      <h2 id="modalWinnerTitle">🎉 Nancy Wins! 🎉</h2>
+      <p id="modalWinnerSub">Reached target score!</p>
+      <button onclick="closeWinnerModal()">Start New Match</button>
+    </div>
+  </div>
+
+  <div id="milestoneModal" class="modal">
+    <div class="modal-content">
+      <div id="milestoneModalIcon" style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎆</div>
+      <h2 id="milestoneModalTitle">Record Broken!</h2>
+      <p id="milestoneModalSub">New record achieved.</p>
+      <button onclick="closeMilestoneModal()">Continue Playing</button>
+    </div>
+  </div>
+
+  <div id="resumeModal" class="modal">
+    <div class="modal-content">
+      <h2>Active Match Found</h2>
+      <p>Would you like to resume your previous ongoing game or start a fresh match?</p>
+      <button onclick="closeResumeModal()">Resume Game</button>
+      <button class="btn-secondary" onclick="startFreshGame()">Start Fresh Game</button>
+    </div>
+  </div>
+
+  <div id="resetModal" class="modal">
+    <div class="modal-content">
+      <h2>Reset Statistics?</h2>
+      <p>This will permanently erase all lifetime scores, records, and match histories.</p>
+      <button class="btn-danger" onclick="confirmResetStats()">Yes, Reset Everything</button>
+      <button class="btn-secondary" onclick="closeResetModal()">Cancel</button>
+    </div>
+  </div>
+
+  <script>
     function scrollToTop() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -9,6 +339,7 @@
       
       document.getElementById(pageId).classList.add('active');
       if (pageId === 'scorerPage') document.getElementById('tabScorer').classList.add('active');
+      if (pageId === 'statsPage') document.getElementById('tabStats').classList.add('active');
       if (pageId === 'rulesPage') document.getElementById('tabRules').classList.add('active');
       
       scrollToTop();
@@ -40,6 +371,7 @@
       const dW = parseInt(document.getElementById('defenderValue').value) || 0;
 
       const banner = document.getElementById('knockPreviewBanner');
+      banner.style.display = 'block';
 
       if (kW < dW) {
         const pts = dW - kW;
@@ -422,117 +754,138 @@
       customInput.disabled = hasStarted;
     }
 
-    document.getElementById('handForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const type = document.getElementById('typeSelect').value;
-      
-      let winner, loser, pts, loserDw;
+    // Safely attach form submission handler once DOM loads
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('handForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        // Prevent processing if match was already finished/recorded
+        if (currentGame.matchWinRecorded) return;
 
-      if (type === 'gin') {
-        winner = document.getElementById('ginWinnerSelect').value;
-        loser = winner === 'nancy' ? 'darren' : 'nancy';
-        loserDw = parseInt(document.getElementById('ginDefenderValue').value) || 0;
-        pts = loserDw + 25;
-      } else {
-        const result = calculateKnockOutcome();
-        winner = result.winner;
-        loser = result.loser;
-        pts = result.pts;
-        loserDw = result.loserDw;
+        const type = document.getElementById('typeSelect').value;
+        
+        let winner, loser, pts, loserDw;
+
+        if (type === 'gin') {
+          winner = document.getElementById('ginWinnerSelect').value;
+          loser = winner === 'nancy' ? 'darren' : 'nancy';
+          loserDw = parseInt(document.getElementById('ginDefenderValue').value) || 0;
+          pts = loserDw + 25;
+        } else {
+          const result = calculateKnockOutcome();
+          winner = result.winner;
+          loser = result.loser;
+          pts = result.pts;
+          loserDw = result.loserDw;
+        }
+
+        const winnerNameFormatted = winner === 'nancy' ? 'Nancy' : 'Darren';
+
+        const handSnapshot = {
+          winner: winner,
+          loser: loser,
+          pts: pts,
+          loserDw: loserDw
+        };
+        handHistory.push(handSnapshot);
+
+        currentGame[winner].score += pts;
+        currentGame[winner].handsWon += 1;
+        currentGame[winner].totalPoints += pts;
+        currentGame[winner].consecutiveHandsWon += 1;
+        
+        currentGame[loser].totalDeadwoodCaught += loserDw;
+        currentGame[loser].handsLost += 1;
+        currentGame[loser].consecutiveHandsWon = 0;
+
+        currentGame.handsPlayed += 1;
+
+        lifetime[winner].handsWon += 1;
+        lifetime[winner].totalPoints += pts;
+        lifetime[loser].totalDeadwoodCaught += loserDw;
+        lifetime[loser].handsLost += 1;
+
+        // --- SHARED GLOBAL RECORD CHECK ---
+        const currentHighestHand = Math.max(lifetime.nancy.biggestHand, lifetime.darren.biggestHand);
+        if (pts > currentHighestHand) {
+          lifetime[winner].biggestHand = pts;
+          queueMilestoneAlert(
+            `🚀 New All-Time Hand Score Record!`,
+            `${winnerNameFormatted} just scored ${pts} points in a single hand, setting a new all-time record!`
+          );
+        } else if (pts > lifetime[winner].biggestHand) {
+          lifetime[winner].biggestHand = pts;
+        }
+
+        // Most Consecutive Winning Hands Check (3+ in a row)
+        if (currentGame[winner].consecutiveHandsWon >= 3) {
+          queueMilestoneAlert(
+            `🔥 Hot Hand Streak!`,
+            `${winnerNameFormatted} has won ${currentGame[winner].consecutiveHandsWon} consecutive hands in this game!`
+          );
+        }
+
+        saveToStorage();
+        updateUI();
+        updateGameTypeLockState();
+
+        document.getElementById('ginDefenderValue').value = 0;
+        document.getElementById('knockerValue').value = 0;
+        document.getElementById('defenderValue').value = 0;
+        calculateKnockOutcome();
+
+        // Check Automatic Win Threshold
+        const mode = currentGame.gameMode;
+        let target = null;
+        if (mode === '100') target = 100;
+        else if (mode === 'custom') target = currentGame.customTarget;
+
+        if (target !== null && !currentGame.matchWinRecorded) {
+          if (currentGame.nancy.score >= target || currentGame.darren.score >= target) {
+            currentGame.matchWinRecorded = true; // Lock down immediately
+
+            const matchWinner = currentGame.nancy.score >= target ? 'Nancy' : 'Darren';
+            const winnerKey = matchWinner.toLowerCase();
+            const winnerScore = currentGame[winnerKey].score;
+            
+            lifetime[winnerKey].matchWins += 1;
+            lifetime[winnerKey].currentStreak += 1;
+            const opposingKey = winnerKey === 'nancy' ? 'darren' : 'nancy';
+            lifetime[opposingKey].currentStreak = 0;
+
+            // Check Global Longest Streak Record
+            const currentHighestStreak = Math.max(lifetime.nancy.maxStreak, lifetime.darren.maxStreak);
+            if (lifetime[winnerKey].currentStreak > currentHighestStreak) {
+              lifetime[winnerKey].maxStreak = lifetime[winnerKey].currentStreak;
+              queueMilestoneAlert(
+                `🏆 New All-Time Match Streak Record!`,
+                `${matchWinner} has set a new all-time record with ${lifetime[winnerKey].maxStreak} consecutive match wins!`
+              );
+            } else if (lifetime[winnerKey].currentStreak > lifetime[winnerKey].maxStreak) {
+              lifetime[winnerKey].maxStreak = lifetime[winnerKey].currentStreak;
+            }
+
+            saveToStorage();
+
+            setTimeout(() => {
+              showWinnerModal(matchWinner, winnerScore, target);
+            }, 150);
+          }
+        }
+      });
+
+      // Initialize startup view state
+      document.getElementById('gameModeSelect').value = currentGame.gameMode;
+      if (currentGame.gameMode === 'custom') {
+        document.getElementById('customTargetInput').value = currentGame.customTarget;
       }
-
-      const winnerNameFormatted = winner === 'nancy' ? 'Nancy' : 'Darren';
-
-      const handSnapshot = {
-        winner: winner,
-        loser: loser,
-        pts: pts,
-        loserDw: loserDw
-      };
-      handHistory.push(handSnapshot);
-
-      currentGame[winner].score += pts;
-      currentGame[winner].handsWon += 1;
-      currentGame[winner].totalPoints += pts;
-      currentGame[winner].consecutiveHandsWon += 1;
-      
-      currentGame[loser].totalDeadwoodCaught += loserDw;
-      currentGame[loser].handsLost += 1;
-      currentGame[loser].consecutiveHandsWon = 0;
-
-      currentGame.handsPlayed += 1;
-
-      lifetime[winner].handsWon += 1;
-      lifetime[winner].totalPoints += pts;
-      lifetime[loser].totalDeadwoodCaught += loserDw;
-      lifetime[loser].handsLost += 1;
-
-      // --- SHARED GLOBAL RECORD CHECK ---
-      const currentHighestHand = Math.max(lifetime.nancy.biggestHand, lifetime.darren.biggestHand);
-      if (pts > currentHighestHand) {
-        lifetime[winner].biggestHand = pts;
-        queueMilestoneAlert(
-          `🚀 New All-Time Hand Score Record!`,
-          `${winnerNameFormatted} just scored ${pts} points in a single hand, setting a new all-time record!`
-        );
-      } else if (pts > lifetime[winner].biggestHand) {
-        lifetime[winner].biggestHand = pts;
-      }
-
-      // Most Consecutive Winning Hands (Single Game) Check (3+ in a row)
-      if (currentGame[winner].consecutiveHandsWon >= 3) {
-        queueMilestoneAlert(
-          `🔥 Hot Hand Streak!`,
-          `${winnerNameFormatted} has won ${currentGame[winner].consecutiveHandsWon} consecutive hands in this game!`
-        );
-      }
-
-      saveToStorage();
+      handleGameModeChange();
+      handleFormState();
       updateUI();
       updateGameTypeLockState();
 
-      document.getElementById('ginDefenderValue').value = 0;
-      document.getElementById('knockerValue').value = 0;
-      document.getElementById('defenderValue').value = 0;
-      calculateKnockOutcome();
-
-      // Check Automatic Win Threshold (Protected strictly by matchWinRecorded flag)
-      const mode = currentGame.gameMode;
-      let target = null;
-      if (mode === '100') target = 100;
-      else if (mode === 'custom') target = currentGame.customTarget;
-
-      if (target !== null && !currentGame.matchWinRecorded) {
-        if (currentGame.nancy.score >= target || currentGame.darren.score >= target) {
-          currentGame.matchWinRecorded = true; // Hard lock instantly
-
-          const matchWinner = currentGame.nancy.score >= target ? 'Nancy' : 'Darren';
-          const winnerKey = matchWinner.toLowerCase();
-          const winnerScore = currentGame[winnerKey].score;
-          
-          lifetime[winnerKey].matchWins += 1;
-          lifetime[winnerKey].currentStreak += 1;
-          const opposingKey = winnerKey === 'nancy' ? 'darren' : 'nancy';
-          lifetime[opposingKey].currentStreak = 0;
-
-          // Check Global Longest Streak Record
-          const currentHighestStreak = Math.max(lifetime.nancy.maxStreak, lifetime.darren.maxStreak);
-          if (lifetime[winnerKey].currentStreak > currentHighestStreak) {
-            lifetime[winnerKey].maxStreak = lifetime[winnerKey].currentStreak;
-            queueMilestoneAlert(
-              `🏆 New All-Time Match Streak Record!`,
-              `${matchWinner} has set a new all-time record with ${lifetime[winnerKey].maxStreak} consecutive match wins!`
-            );
-          } else if (lifetime[winnerKey].currentStreak > lifetime[winnerKey].maxStreak) {
-            lifetime[winnerKey].maxStreak = lifetime[winnerKey].currentStreak;
-          }
-
-          saveToStorage();
-
-          setTimeout(() => {
-            showWinnerModal(matchWinner, winnerScore, target);
-          }, 150);
-        }
+      if (currentGame.handsPlayed > 0 && !currentGame.matchWinRecorded) {
+        document.getElementById('resumeModal').classList.add('active');
       }
     });
 
@@ -564,7 +917,6 @@
     }
 
     function finishGame() {
-      // Increment total matches played strictly once
       lifetime.gamesPlayed += 1;
 
       currentGame = {
@@ -669,24 +1021,6 @@
         </table>
       `;
     }
-
-    function handleGameModeCheckOnLoad() {
-      handleGameModeChange();
-      handleFormState();
-      updateUI();
-      updateGameTypeLockState();
-
-      if (currentGame.handsPlayed > 0) {
-        document.getElementById('resumeModal').classList.add('active');
-      }
-    }
-
-    // Safely wait for DOM to fully load before initializing elements
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('gameModeSelect').value = currentGame.gameMode;
-      if (currentGame.gameMode === 'custom') {
-        document.getElementById('customTargetInput').value = currentGame.customTarget;
-      }
-      handleGameModeCheckOnLoad();
-    });
   </script>
+</body>
+</html>
