@@ -328,7 +328,7 @@
             </select>
 
             <label for="ginDefenderValue" style="margin-top:12px;">Defender's Total Deadwood</label>
-            <input type="number" id="ginDefenderValue" min="0" max="100" value="0">
+            <input type="number" id="ginDefenderValue" min="0" max="100" value="">
           </div>
 
           <!-- KNOCK SECTION -->
@@ -343,12 +343,12 @@
 
             <div class="form-group">
               <label for="knockerValue">Knocker's Deadwood</label>
-              <input type="number" id="knockerValue" min="0" max="10" value="0">
+              <input type="number" id="knockerValue" min="0" max="10" value="" placeholder="e.g. 3">
             </div>
 
             <div class="form-group">
               <label for="defenderValue">Defender's Deadwood</label>
-              <input type="number" id="defenderValue" min="0" max="100" value="0">
+              <input type="number" id="defenderValue" min="0" max="100" value="" placeholder="e.g. 12">
             </div>
 
             <div id="knockPreviewBanner" class="preview-banner"></div>
@@ -485,14 +485,7 @@
       } else {
         ginSec.style.display = 'none';
         knockSec.style.display = 'block';
-        
-        const kWVal = document.getElementById('knockerValue').value;
-        const dWVal = document.getElementById('defenderValue').value;
-        if (kWVal === '' || dWVal === '') {
-          banner.style.display = 'none';
-        } else {
-          calculateKnockOutcome();
-        }
+        calculateKnockOutcome();
       }
     }
 
@@ -857,7 +850,6 @@
       matchWinRecorded: false
     };
 
-    // Safe JSON parsing with fallback to prevent white screen crashes from corrupted storage
     let lifetime, currentGame, handHistory;
     try {
       lifetime = JSON.parse(localStorage.getItem('gin_lifetime_nd')) || defaultLifetime;
@@ -949,6 +941,7 @@
           pts = loserDw + 25;
         } else {
           const result = calculateKnockOutcome();
+          if (!result) return;
           winner = result.winner;
           loser = result.loser;
           pts = result.pts;
@@ -1003,9 +996,9 @@
         updateUI();
         updateGameTypeLockState();
 
-        document.getElementById('ginDefenderValue').value = 0;
-        document.getElementById('knockerValue').value = 0;
-        document.getElementById('defenderValue').value = 0;
+        document.getElementById('ginDefenderValue').value = '';
+        document.getElementById('knockerValue').value = '';
+        document.getElementById('defenderValue').value = '';
         handleFormState();
 
         const mode = currentGame.gameMode;
