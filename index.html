@@ -30,8 +30,10 @@
     
     label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 8px; color: #64748b; }
     input, select, button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-top: 4px; font-size: 1rem; }
+    input:disabled, select:disabled { background-color: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
     button.action-btn { background: #0f172a; color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 12px; }
     button.secondary { background: #64748b; color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 12px; }
+    button.warning { background: #d97706; color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 8px; }
     button.danger { background: #dc2626; color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 12px; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85rem; }
@@ -175,7 +177,7 @@
           </select>
 
           <label>Opponent's Deadwood</label>
-          <input type="number" id="ginDefenderValue" value="10" min="0">
+          <input type="number" id="ginDefenderValue" value="0" min="0">
         </div>
 
         <div id="knockSection" style="display: none;">
@@ -188,16 +190,16 @@
           <div class="grid-2">
             <div>
               <label>Knocker Deadwood</label>
-              <input type="number" id="knockerValue" value="4" min="0" max="10" oninput="calculateKnockOutcome()">
+              <input type="number" id="knockerValue" value="0" min="0" max="10" oninput="calculateKnockOutcome()">
             </div>
             <div>
               <label>Defender Deadwood</label>
-              <input type="number" id="defenderValue" value="15" min="0" oninput="calculateKnockOutcome()">
+              <input type="number" id="defenderValue" value="0" min="0" oninput="calculateKnockOutcome()">
             </div>
           </div>
 
           <div id="knockPreviewBanner" class="preview-banner preview-knock">
-            Nancy wins 11 pts (Successful Knock)
+            Nancy wins 0 pts (Successful Knock)
           </div>
         </div>
 
@@ -208,6 +210,7 @@
     <div class="card">
       <h3>Current Game Statistics</h3>
       <div id="gameStats">No hands played yet in current game.</div>
+      <button id="undoBtn" class="warning" onclick="undoLastHand()" style="display: none;">↩ Undo Last Hand Entry</button>
       <button class="secondary" onclick="finishGame()">Finish & Archive Game</button>
     </div>
 
@@ -318,6 +321,18 @@
 
   <button class="float-top-btn" onclick="scrollToTop()" title="Return to Top">↑</button>
 
+  <div id="resumeModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon">🔄</div>
+      <h2>Resume Prior Game?</h2>
+      <p id="resumeModalSub">We found an unfinished match in progress. Would you like to resume where you left off or start a fresh game?</p>
+      <div class="grid-2">
+        <button class="secondary" style="margin-top:0;" onclick="startFreshGame()">Start Fresh</button>
+        <button class="action-btn" style="margin-top:0;" onclick="closeResumeModal()">Resume Game</button>
+      </div>
+    </div>
+  </div>
+
   <div id="winnerModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-icon">🏆</div>
@@ -355,7 +370,6 @@
       scrollToTop();
     }
 
-    // Toggle Input Sections for Gin vs Knock
     function handleFormState() {
       const type = document.getElementById('typeSelect').value;
       const ginSec = document.getElementById('ginSection');
@@ -371,7 +385,6 @@
       }
     }
 
-    // Dynamic Outcome Calculation & Preview Banner Update
     function calculateKnockOutcome() {
       const knockerKey = document.getElementById('knockerSelect').value;
       const defenderKey = knockerKey === 'nancy' ? 'darren' : 'nancy';
@@ -385,13 +398,11 @@
       const banner = document.getElementById('knockPreviewBanner');
 
       if (kW < dW) {
-        // Successful Knock
         const pts = dW - kW;
         banner.className = 'preview-banner preview-knock';
         banner.innerText = `👍 ${knockerName} wins ${pts} pts (Successful Knock)`;
         return { winner: knockerKey, loser: defenderKey, pts: pts, loserDw: dW };
       } else {
-        // Undercut!
         const pts = (kW - dW) + 25;
         banner.className = 'preview-banner preview-undercut';
         banner.innerText = `⚡ UNDERCUT! ${defenderName} wins ${pts} pts (+25 Bonus)`;
@@ -399,7 +410,6 @@
       }
     }
 
-    // Modal Control Functions
     function showWinnerModal(winner, score, target) {
       document.getElementById('modalWinnerTitle').innerText = `🎉 ${winner} Wins! 🎉`;
       document.getElementById('modalWinnerSub').innerText = `${winner} reached ${score} points! (Target was ${target})`;
@@ -425,42 +435,67 @@
         nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
         darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
       };
-      localStorage.setItem('gin_stats_nd', JSON.stringify(lifetime));
+      saveToStorage();
       updateUI();
       closeResetModal();
     }
 
-    // App Storage & State
+    // App Storage & State with Persistence
     const defaultLifetime = {
       gamesPlayed: 0,
       nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
       darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
     };
 
-    let lifetime = JSON.parse(localStorage.getItem('gin_stats_nd')) || defaultLifetime;
+    let lifetime = JSON.parse(localStorage.getItem('gin_lifetime_nd')) || defaultLifetime;
 
-    let currentGame = {
+    let currentGame = JSON.parse(localStorage.getItem('gin_currentgame_nd')) || {
       nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
       darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
-      handsPlayed: 0
+      handsPlayed: 0,
+      gameMode: '100',
+      customTarget: 250
     };
+
+    let handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
+
+    function saveToStorage() {
+      localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
+      localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
+      localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
+    }
 
     function handleGameModeChange() {
       const mode = document.getElementById('gameModeSelect').value;
+      const customInput = document.getElementById('customTargetInput');
       const customWrapper = document.getElementById('customTargetWrapper');
       const badge = document.getElementById('targetBadge');
+
+      currentGame.gameMode = mode;
+      if (mode === 'custom') {
+        currentGame.customTarget = parseInt(customInput.value) || 250;
+      }
+      saveToStorage();
 
       if (mode === '100') {
         customWrapper.style.display = 'none';
         badge.innerText = 'Target: First to 100 Points';
       } else if (mode === 'custom') {
         customWrapper.style.display = 'block';
-        const customVal = parseInt(document.getElementById('customTargetInput').value) || 100;
-        badge.innerText = `Target: First to ${customVal} Points`;
+        badge.innerText = `Target: First to ${currentGame.customTarget} Points`;
       } else if (mode === 'endless') {
         customWrapper.style.display = 'none';
         badge.innerText = 'Target: Endless / Open-Ended Game';
       }
+    }
+
+    function updateGameTypeLockState() {
+      const modeSelect = document.getElementById('gameModeSelect');
+      const customInput = document.getElementById('customTargetInput');
+      const hasStarted = currentGame.handsPlayed > 0;
+
+      modeSelect.disabled = hasStarted;
+      customInput.disabled = hasStarted;
     }
 
     document.getElementById('handForm').addEventListener('submit', (e) => {
@@ -482,6 +517,14 @@
         loserDw = result.loserDw;
       }
 
+      const handSnapshot = {
+        winner: winner,
+        loser: loser,
+        pts: pts,
+        loserDw: loserDw
+      };
+      handHistory.push(handSnapshot);
+
       currentGame[winner].score += pts;
       currentGame[winner].handsWon += 1;
       currentGame[winner].totalPoints += pts;
@@ -497,14 +540,21 @@
         lifetime[winner].biggestHand = pts;
       }
 
-      localStorage.setItem('gin_stats_nd', JSON.stringify(lifetime));
+      saveToStorage();
       updateUI();
+      updateGameTypeLockState();
+
+      // Reset deadwood inputs back to 0 upon submission
+      document.getElementById('ginDefenderValue').value = 0;
+      document.getElementById('knockerValue').value = 0;
+      document.getElementById('defenderValue').value = 0;
+      calculateKnockOutcome();
 
       // Check Automatic Win Threshold
-      const mode = document.getElementById('gameModeSelect').value;
+      const mode = currentGame.gameMode;
       let target = null;
       if (mode === '100') target = 100;
-      else if (mode === 'custom') target = parseInt(document.getElementById('customTargetInput').value) || 100;
+      else if (mode === 'custom') target = currentGame.customTarget;
 
       if (target !== null) {
         if (currentGame.nancy.score >= target || currentGame.darren.score >= target) {
@@ -518,9 +568,30 @@
       }
     });
 
+    function undoLastHand() {
+      if (handHistory.length === 0 || currentGame.handsPlayed === 0) return;
+
+      const lastHand = handHistory.pop();
+      const { winner, loser, pts, loserDw } = lastHand;
+
+      currentGame[winner].score -= pts;
+      currentGame[winner].handsWon -= 1;
+      currentGame[winner].totalPoints -= pts;
+      currentGame[loser].totalDeadwoodCaught -= loserDw;
+      currentGame[loser].handsLost -= 1;
+      currentGame.handsPlayed -= 1;
+
+      lifetime[winner].handsWon -= 1;
+      lifetime[winner].totalPoints -= pts;
+      lifetime[loser].totalDeadwoodCaught -= loserDw;
+      lifetime[loser].handsLost -= 1;
+
+      saveToStorage();
+      updateUI();
+      updateGameTypeLockState();
+    }
+
     function finishGame() {
-      if (currentGame.handsPlayed === 0) return;
-      
       lifetime.gamesPlayed += 1;
 
       if (currentGame.nancy.score > currentGame.darren.score) {
@@ -539,20 +610,54 @@
         }
       }
 
-      localStorage.setItem('gin_stats_nd', JSON.stringify(lifetime));
-      
       currentGame = {
         nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
         darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
-        handsPlayed: 0
+        handsPlayed: 0,
+        gameMode: '100',
+        customTarget: 250
       };
+      handHistory = [];
 
+      saveToStorage();
       updateUI();
+      document.getElementById('gameModeSelect').value = '100';
+      handleGameModeChange();
+      updateGameTypeLockState();
+    }
+
+    function startFreshGame() {
+      currentGame = {
+        nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+        darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+        handsPlayed: 0,
+        gameMode: '100',
+        customTarget: 250
+      };
+      handHistory = [];
+      saveToStorage();
+      document.getElementById('resumeModal').classList.remove('active');
+      document.getElementById('gameModeSelect').value = '100';
+      handleGameModeChange();
+      updateUI();
+      updateGameTypeLockState();
+    }
+
+    function closeResumeModal() {
+      document.getElementById('resumeModal').classList.remove('active');
     }
 
     function updateUI() {
       document.getElementById('p1Score').innerText = currentGame.nancy.score;
       document.getElementById('p2Score').innerText = currentGame.darren.score;
+
+      const undoBtn = document.getElementById('undoBtn');
+      if (handHistory.length > 0) {
+        undoBtn.style.display = 'block';
+        undoBtn.innerText = `↩ Undo Last Entry (${handHistory.length} recorded)`;
+      } else {
+        undoBtn.style.display = 'none';
+      }
 
       const totalH = currentGame.handsPlayed;
       if (totalH > 0) {
@@ -606,10 +711,24 @@
       `;
     }
 
-    // Initial setup on page load
-    handleGameModeChange();
-    handleFormState();
-    updateUI();
+    // App Initialization & Resume Check on Load
+    document.getElementById('gameModeSelect').value = currentGame.gameMode;
+    if (currentGame.gameMode === 'custom') {
+      document.getElementById('customTargetInput').value = currentGame.customTarget;
+    }
+    handleGameModeCheckOnLoad();
+
+    function handleGameModeCheckOnLoad() {
+      handleGameModeChange();
+      handleFormState();
+      updateUI();
+      updateGameTypeLockState();
+
+      // Trigger Resume Modal only if a game was genuinely abandoned mid-match (hands played > 0)
+      if (currentGame.handsPlayed > 0) {
+        document.getElementById('resumeModal').classList.add('active');
+      }
+    }
   </script>
 </body>
 </html>
