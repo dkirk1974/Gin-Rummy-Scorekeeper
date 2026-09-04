@@ -502,7 +502,7 @@
       if (mode === '100') target = 100;
       else if (mode === 'custom') target = currentGame.customTarget;
 
-      if (target !== null) {
+      if (target !== null && !currentGame.winnerAlreadyRecorded) {
         if (currentGame.nancy.score >= target || currentGame.darren.score >= target) {
           const matchWinner = currentGame.nancy.score >= target ? 'Nancy' : 'Darren';
           const winnerKey = matchWinner.toLowerCase();
@@ -563,27 +563,8 @@
     }
 
     function finishGame() {
-      if (!currentGame.winnerAlreadyRecorded && currentGame.nancy.score !== currentGame.darren.score) {
-        const matchWinner = currentGame.nancy.score > currentGame.darren.score ? 'nancy' : 'darren';
-        const winnerNameFormatted = matchWinner === 'nancy' ? 'Nancy' : 'Darren';
-        const opposingKey = matchWinner === 'nancy' ? 'darren' : 'nancy';
-
-        lifetime[matchWinner].matchWins += 1;
-        lifetime[matchWinner].currentStreak += 1;
-        lifetime[opposingKey].currentStreak = 0;
-
-        const currentHighestStreak = Math.max(lifetime.nancy.maxStreak, lifetime.darren.maxStreak);
-        if (lifetime[matchWinner].currentStreak > currentHighestStreak) {
-          lifetime[matchWinner].maxStreak = lifetime[matchWinner].currentStreak;
-          queueMilestoneAlert(
-            `🏆 New All-Time Match Streak Record!`,
-            `${winnerNameFormatted} has set a new all-time record with ${lifetime[matchWinner].maxStreak} consecutive match wins!`
-          );
-        } else if (lifetime[matchWinner].currentStreak > lifetime[matchWinner].maxStreak) {
-          lifetime[matchWinner].maxStreak = lifetime[matchWinner].currentStreak;
-        }
-      }
-
+      // Match wins are now strictly handled upon crossing the target threshold during form submission.
+      // finishGame only resets the game state and increments total games played.
       lifetime.gamesPlayed += 1;
 
       currentGame = {
