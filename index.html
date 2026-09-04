@@ -7,7 +7,7 @@
   <style>
     :root { --p1-color: #2563eb; --p2-color: #dc2626; --bg: #f8fafc; --card: #ffffff; }
     html { scroll-behavior: smooth; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 16px; color: #1e293b; max-width: 600px; margin: auto; padding-bottom: 80px; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 16px; color: #1e293b; max-width: 600px; margin: auto; padding-bottom: 80px; position: relative; }
     
     /* Navigation Tabs */
     .nav-bar { display: flex; gap: 8px; margin-bottom: 16px; position: sticky; top: 0; background: var(--bg); padding-top: 4px; z-index: 10; }
@@ -19,7 +19,7 @@
     .page.active { display: block; }
 
     /* Card Layout */
-    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative; z-index: 2; }
     h2, h3 { margin-top: 0; margin-bottom: 12px; }
     .score-board { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: center; }
     .score-box { padding: 12px; border-radius: 8px; color: white; }
@@ -90,6 +90,15 @@
     .preview-knock { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
     .preview-undercut { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
+    /* Fullscreen Animation Canvas Layer */
+    #fxCanvas {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 950;
+      display: none;
+    }
+
     /* Modal Overlay Styling */
     .modal-overlay {
       position: fixed;
@@ -112,6 +121,8 @@
       width: 100%;
       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
       animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      z-index: 1005;
     }
     @keyframes popIn {
       0% { transform: scale(0.6); opacity: 0; }
@@ -124,11 +135,16 @@
 </head>
 <body>
 
+  <!-- Fullscreen Celebration FX Canvas -->
+  <canvas id="fxCanvas"></canvas>
+
+  <!-- Navigation Tabs -->
   <div class="nav-bar" id="topAnchor">
     <button class="nav-btn active" id="tabScorer" onclick="showPage('scorerPage')">Scorekeeper</button>
     <button class="nav-btn" id="tabRules" onclick="showPage('rulesPage')">Rules & Reference</button>
   </div>
 
+  <!-- MAIN SCORING PAGE -->
   <div id="scorerPage" class="page active">
     <div class="card">
       <h2>Gin Rummy Match</h2>
@@ -145,6 +161,7 @@
         </div>
       </div>
 
+      <!-- Game Mode Selection -->
       <div style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
         <label>Game Type / Win Condition</label>
         <select id="gameModeSelect" onchange="handleGameModeChange()">
@@ -169,6 +186,7 @@
           <option value="knock">Knock</option>
         </select>
 
+        <!-- GIN CONTAINER -->
         <div id="ginSection">
           <label>Who Went Gin?</label>
           <select id="ginWinnerSelect">
@@ -180,6 +198,7 @@
           <input type="number" id="ginDefenderValue" value="0" min="0">
         </div>
 
+        <!-- KNOCK CONTAINER -->
         <div id="knockSection" style="display: none;">
           <label>Who Knocked?</label>
           <select id="knockerSelect" onchange="calculateKnockOutcome()">
@@ -221,10 +240,12 @@
     </div>
   </div>
 
+  <!-- SEPARATE RULES PAGE -->
   <div id="rulesPage" class="page">
     <div class="card">
       <h2>Complete Gin Rummy Rules</h2>
 
+      <!-- Table of Contents -->
       <div class="toc-container">
         <div class="toc-title">Table of Contents</div>
         <ul class="toc-list">
@@ -238,6 +259,7 @@
         </ul>
       </div>
 
+      <!-- Rule Content Sections -->
       <div id="rule-setup" class="rule-section">
         <h3>1. Game Objective & Setup</h3>
         <p>The objective of Gin Rummy is to form matched sets/runs of cards and reduce unmatched cards ("deadwood") in your hand.</p>
@@ -319,8 +341,10 @@
     </div>
   </div>
 
+  <!-- FLOATING RETURN TO TOP BUTTON -->
   <button class="float-top-btn" onclick="scrollToTop()" title="Return to Top">↑</button>
 
+  <!-- RESUME PREVIOUS GAME POP-UP MODAL -->
   <div id="resumeModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-icon">🔄</div>
@@ -333,6 +357,7 @@
     </div>
   </div>
 
+  <!-- WINNER CELEBRATION POP-UP MODAL -->
   <div id="winnerModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-icon">🏆</div>
@@ -342,6 +367,17 @@
     </div>
   </div>
 
+  <!-- MILESTONE & RECORD CELEBRATION POP-UP MODAL -->
+  <div id="milestoneModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon" id="milestoneModalIcon">🎆</div>
+      <h2 id="milestoneModalTitle">New Milestone!</h2>
+      <p id="milestoneModalSub">A record was broken!</p>
+      <button class="action-btn" onclick="closeMilestoneModal()">Awesome! Continue</button>
+    </div>
+  </div>
+
+  <!-- WARNING CONFIRMATION MODAL FOR CLEARING STATS -->
   <div id="resetModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-icon">⚠️</div>
@@ -410,15 +446,302 @@
       }
     }
 
+    // --- AUDIO SYNTHESIZER FOR CONTINUOUS LOOPING SOUNDS ---
+    let audioCtx = null;
+    let loopInterval = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Clapping sound generator for Match Win
+    function playClapBurst() {
+      try {
+        const ctx = getAudioContext();
+        const bufferSize = ctx.sampleRate * 0.12;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.03));
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1000 + Math.random() * 800;
+        filter.Q.value = 1.2;
+        noise.connect(filter);
+        filter.connect(ctx.destination);
+        noise.start();
+      } catch (e) {
+        // Audio context restricted until user gesture
+      }
+    }
+
+    function startClappingLoop() {
+      stopAudioLoop();
+      // Rapid fire overlapping claps
+      loopInterval = setInterval(() => {
+        playClapBurst();
+        setTimeout(playClapBurst, 40);
+        setTimeout(playClapBurst, 90);
+      }, 400);
+    }
+
+    // Fireworks whistling & bursting sound generator for Milestones
+    function playFireworkSound() {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        const now = ctx.currentTime;
+        // Whistle up effect
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.35);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+
+        // Burst explosion after whistle
+        setTimeout(() => {
+          try {
+            const bSize = ctx.sampleRate * 0.6;
+            const bBuf = ctx.createBuffer(1, bSize, ctx.sampleRate);
+            const bData = bBuf.getChannelData(0);
+            for (let i = 0; i < bSize; i++) {
+              bData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.15));
+            }
+            const bSource = ctx.createBufferSource();
+            bSource.buffer = bBuf;
+            const bFilter = ctx.createBiquadFilter();
+            bFilter.type = 'lowpass';
+            bFilter.frequency.value = 400;
+            bSource.connect(bFilter);
+            bFilter.connect(ctx.destination);
+            bSource.start();
+          } catch(err){}
+        }, 350);
+      } catch(e) {}
+    }
+
+    function startFireworksAudioLoop() {
+      stopAudioLoop();
+      playFireworkSound();
+      loopInterval = setInterval(() => {
+        playFireworkSound();
+      }, 1400);
+    }
+
+    function stopAudioLoop() {
+      if (loopInterval) {
+        clearInterval(loopInterval);
+        loopInterval = null;
+      }
+    }
+
+    // --- CANVAS PARTICLE ANIMATIONS ---
+    const canvas = document.getElementById('fxCanvas');
+    const ctx = canvas.getContext('2d');
+    let animationId = null;
+    let particles = [];
+    let currentFxType = null; // 'confetti' or 'fireworks'
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function startConfettiAnimation() {
+      currentFxType = 'confetti';
+      particles = [];
+      canvas.style.display = 'block';
+      for (let i = 0; i < 150; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          w: Math.random() * 10 + 5,
+          h: Math.random() * 6 + 3,
+          color: ['#2563eb', '#dc2626', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'][Math.floor(Math.random()*6)],
+          vy: Math.random() * 3 + 2,
+          vx: Math.random() * 2 - 1,
+          rot: Math.random() * 360,
+          vRot: Math.random() * 6 - 3
+        });
+      }
+      runAnimationLoop();
+    }
+
+    function startFireworksAnimation() {
+      currentFxType = 'fireworks';
+      particles = [];
+      canvas.style.display = 'block';
+      // Launch initial fireworks shells
+      for(let i=0; i<3; i++){
+        createFireworkShell();
+      }
+      runAnimationLoop();
+    }
+
+    function createFireworkShell() {
+      const startX = Math.random() * (canvas.width - 200) + 100;
+      const targetY = Math.random() * (canvas.height * 0.5) + 50;
+      particles.push({
+        isShell: true,
+        x: startX,
+        y: canvas.height,
+        targetY: targetY,
+        vx: (Math.random() - 0.5) * 2,
+        vy: -11 - Math.random() * 4,
+        color: ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#ec4899'][Math.floor(Math.random()*5)]
+      });
+    }
+
+    function explodeShell(x, y, color) {
+      const count = 45;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6 + 2;
+        particles.push({
+          isShell: false,
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          alpha: 1,
+          decay: Math.random() * 0.015 + 0.01,
+          color: color
+        });
+      }
+    }
+
+    function runAnimationLoop() {
+      cancelAnimationFrame(animationId);
+      function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (currentFxType === 'confetti') {
+          particles.forEach(p => {
+            p.y += p.vy;
+            p.x += p.vx + Math.sin(p.y * 0.02) * 0.5;
+            p.rot += p.vRot;
+            if (p.y > canvas.height) {
+              p.y = -20;
+              p.x = Math.random() * canvas.width;
+            }
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rot * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+          });
+        } else if (currentFxType === 'fireworks') {
+          // Occasionally launch a new shell
+          if (Math.random() < 0.04 && particles.filter(p => p.isShell).length < 4) {
+            createFireworkShell();
+          }
+
+          for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            if (p.isShell) {
+              p.x += p.vx;
+              p.y += p.vy;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+              ctx.fillStyle = p.color;
+              ctx.fill();
+              if (p.y <= p.targetY || p.vy >= 0) {
+                explodeShell(p.x, p.y, p.color);
+                particles.splice(i, 1);
+              }
+            } else {
+              p.x += p.vx;
+              p.y += p.vy;
+              p.vy += 0.12; // Gravity
+              p.alpha -= p.decay;
+              if (p.alpha <= 0) {
+                particles.splice(i, 1);
+                continue;
+              }
+              ctx.save();
+              ctx.globalAlpha = p.alpha;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+              ctx.fillStyle = p.color;
+              ctx.fill();
+              ctx.restore();
+            }
+          }
+        }
+
+        animationId = requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    function stopAnimationFX() {
+      cancelAnimationFrame(animationId);
+      canvas.style.display = 'none';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      currentFxType = null;
+    }
+
+    // --- MODALS & QUEUED MILESTONE SYSTEM ---
+    let milestoneQueue = [];
+
     function showWinnerModal(winner, score, target) {
       document.getElementById('modalWinnerTitle').innerText = `🎉 ${winner} Wins! 🎉`;
       document.getElementById('modalWinnerSub').innerText = `${winner} reached ${score} points! (Target was ${target})`;
       document.getElementById('winnerModal').classList.add('active');
+      startClappingLoop();
+      startConfettiAnimation();
     }
 
     function closeWinnerModal() {
+      stopAudioLoop();
+      stopAnimationFX();
       document.getElementById('winnerModal').classList.remove('active');
       finishGame();
+    }
+
+    function queueMilestoneAlert(title, subtitle, icon = '🎆') {
+      milestoneQueue.push({ title, subtitle, icon });
+      if (!document.getElementById('milestoneModal').classList.contains('active') && 
+          !document.getElementById('winnerModal').classList.contains('active')) {
+        processNextMilestone();
+      }
+    }
+
+    function processNextMilestone() {
+      if (milestoneQueue.length === 0) return;
+      const m = milestoneQueue.shift();
+      document.getElementById('milestoneModalTitle').innerText = m.title;
+      document.getElementById('milestoneModalSub').innerText = m.subtitle;
+      document.getElementById('milestoneModalIcon').innerText = m.icon;
+      document.getElementById('milestoneModal').classList.add('active');
+      startFireworksAudioLoop();
+      startFireworksAnimation();
+    }
+
+    function closeMilestoneModal() {
+      stopAudioLoop();
+      stopAnimationFX();
+      document.getElementById('milestoneModal').classList.remove('active');
+      if (milestoneQueue.length > 0) {
+        setTimeout(processNextMilestone, 250);
+      }
     }
 
     function showResetModal() {
@@ -450,12 +773,16 @@
     let lifetime = JSON.parse(localStorage.getItem('gin_lifetime_nd')) || defaultLifetime;
 
     let currentGame = JSON.parse(localStorage.getItem('gin_currentgame_nd')) || {
-      nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
-      darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+      nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
+      darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
       handsPlayed: 0,
       gameMode: '100',
       customTarget: 250
     };
+
+    // Ensure consecutive property exists if loading older storage states
+    if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
+    if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
 
     let handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
 
@@ -517,6 +844,9 @@
         loserDw = result.loserDw;
       }
 
+      const winnerNameFormatted = winner === 'nancy' ? 'Nancy' : 'Darren';
+      const loserNameFormatted = loser === 'nancy' ? 'Nancy' : 'Darren';
+
       const handSnapshot = {
         winner: winner,
         loser: loser,
@@ -528,16 +858,36 @@
       currentGame[winner].score += pts;
       currentGame[winner].handsWon += 1;
       currentGame[winner].totalPoints += pts;
+      currentGame[winner].consecutiveHandsWon += 1;
+      
       currentGame[loser].totalDeadwoodCaught += loserDw;
       currentGame[loser].handsLost += 1;
+      currentGame[loser].consecutiveHandsWon = 0; // Reset loser streak in current game
+
       currentGame.handsPlayed += 1;
 
       lifetime[winner].handsWon += 1;
       lifetime[winner].totalPoints += pts;
       lifetime[loser].totalDeadwoodCaught += loserDw;
       lifetime[loser].handsLost += 1;
+
+      // --- CHECK MILESTONES & RECORDS ---
+      
+      // 1. Biggest Hand Score Record Check
       if (pts > lifetime[winner].biggestHand) {
         lifetime[winner].biggestHand = pts;
+        queueMilestoneAlert(
+          `🚀 New Hand Score Record!`,
+          `${winnerNameFormatted} just scored ${pts} points in a single hand, smashing the previous record!`
+        );
+      }
+
+      // 2. Most Consecutive Winning Hands (Single Game) Check (3+ in a row)
+      if (currentGame[winner].consecutiveHandsWon >= 3) {
+        queueMilestoneAlert(
+          `🔥 Hot Hand Streak!`,
+          `${winnerNameFormatted} has won ${currentGame[winner].consecutiveHandsWon} consecutive hands in this game!`
+        );
       }
 
       saveToStorage();
@@ -559,8 +909,24 @@
       if (target !== null) {
         if (currentGame.nancy.score >= target || currentGame.darren.score >= target) {
           const matchWinner = currentGame.nancy.score >= target ? 'Nancy' : 'Darren';
-          const winnerScore = currentGame[matchWinner.toLowerCase()].score;
+          const winnerKey = matchWinner.toLowerCase();
+          const winnerScore = currentGame[winnerKey].score;
           
+          // Update match win stats & check Longest Win Streak milestone
+          lifetime[winnerKey].matchWins += 1;
+          lifetime[winnerKey].currentStreak += 1;
+          const opposingKey = winnerKey === 'nancy' ? 'darren' : 'nancy';
+          lifetime[opposingKey].currentStreak = 0;
+
+          if (lifetime[winnerKey].currentStreak > lifetime[winnerKey].maxStreak) {
+            lifetime[winnerKey].maxStreak = lifetime[winnerKey].currentStreak;
+            queueMilestoneAlert(
+              `🏆 New Match Streak Record!`,
+              `${matchWinner} has set a new record with ${lifetime[winnerKey].maxStreak} consecutive match wins!`
+            );
+          }
+          saveToStorage();
+
           setTimeout(() => {
             showWinnerModal(matchWinner, winnerScore, target);
           }, 150);
@@ -577,6 +943,10 @@
       currentGame[winner].score -= pts;
       currentGame[winner].handsWon -= 1;
       currentGame[winner].totalPoints -= pts;
+      if (currentGame[winner].consecutiveHandsWon > 0) {
+        currentGame[winner].consecutiveHandsWon -= 1;
+      }
+
       currentGame[loser].totalDeadwoodCaught -= loserDw;
       currentGame[loser].handsLost -= 1;
       currentGame.handsPlayed -= 1;
@@ -592,27 +962,30 @@
     }
 
     function finishGame() {
-      lifetime.gamesPlayed += 1;
+      // If finished manually via button (and not already triggered via target score)
+      if (currentGame.nancy.score !== currentGame.darren.score) {
+        const matchWinner = currentGame.nancy.score > currentGame.darren.score ? 'nancy' : 'darren';
+        const winnerNameFormatted = matchWinner === 'nancy' ? 'Nancy' : 'Darren';
+        const opposingKey = matchWinner === 'nancy' ? 'darren' : 'nancy';
 
-      if (currentGame.nancy.score > currentGame.darren.score) {
-        lifetime.nancy.matchWins += 1;
-        lifetime.nancy.currentStreak += 1;
-        lifetime.darren.currentStreak = 0;
-        if (lifetime.nancy.currentStreak > lifetime.nancy.maxStreak) {
-          lifetime.nancy.maxStreak = lifetime.nancy.currentStreak;
-        }
-      } else if (currentGame.darren.score > currentGame.nancy.score) {
-        lifetime.darren.matchWins += 1;
-        lifetime.darren.currentStreak += 1;
-        lifetime.nancy.currentStreak = 0;
-        if (lifetime.darren.currentStreak > lifetime.darren.maxStreak) {
-          lifetime.darren.maxStreak = lifetime.darren.currentStreak;
+        lifetime[matchWinner].matchWins += 1;
+        lifetime[matchWinner].currentStreak += 1;
+        lifetime[opposingKey].currentStreak = 0;
+
+        if (lifetime[matchWinner].currentStreak > lifetime[matchWinner].maxStreak) {
+          lifetime[matchWinner].maxStreak = lifetime[matchWinner].currentStreak;
+          queueMilestoneAlert(
+            `🏆 New Match Streak Record!`,
+            `${winnerNameFormatted} has set a new record with ${lifetime[matchWinner].maxStreak} consecutive match wins!`
+          );
         }
       }
 
+      lifetime.gamesPlayed += 1;
+
       currentGame = {
-        nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
-        darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+        nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
+        darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
         handsPlayed: 0,
         gameMode: '100',
         customTarget: 250
@@ -628,8 +1001,8 @@
 
     function startFreshGame() {
       currentGame = {
-        nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
-        darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0 },
+        nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
+        darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
         handsPlayed: 0,
         gameMode: '100',
         customTarget: 250
