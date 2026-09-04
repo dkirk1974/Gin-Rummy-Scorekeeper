@@ -374,12 +374,12 @@
       handsPlayed: 0,
       gameMode: '100',
       customTarget: 250,
-      winnerAlreadyRecorded: false
+      matchWinProcessed: false
     };
 
     if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
     if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
-    if (currentGame.winnerAlreadyRecorded === undefined) currentGame.winnerAlreadyRecorded = false;
+    if (currentGame.matchWinProcessed === undefined) currentGame.matchWinProcessed = false;
 
     let handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
 
@@ -502,8 +502,10 @@
       if (mode === '100') target = 100;
       else if (mode === 'custom') target = currentGame.customTarget;
 
-      if (target !== null && !currentGame.winnerAlreadyRecorded) {
+      if (target !== null && !currentGame.matchWinProcessed) {
         if (currentGame.nancy.score >= target || currentGame.darren.score >= target) {
+          currentGame.matchWinProcessed = true; // Lock it immediately so it can never be processed twice
+
           const matchWinner = currentGame.nancy.score >= target ? 'Nancy' : 'Darren';
           const winnerKey = matchWinner.toLowerCase();
           const winnerScore = currentGame[winnerKey].score;
@@ -525,7 +527,6 @@
             lifetime[winnerKey].maxStreak = lifetime[winnerKey].currentStreak;
           }
 
-          currentGame.winnerAlreadyRecorded = true;
           saveToStorage();
 
           setTimeout(() => {
@@ -563,8 +564,7 @@
     }
 
     function finishGame() {
-      // Match wins are now strictly handled upon crossing the target threshold during form submission.
-      // finishGame only resets the game state and increments total games played.
+      // Cleanly advance match totals for lifetime stats tracker
       lifetime.gamesPlayed += 1;
 
       currentGame = {
@@ -573,7 +573,7 @@
         handsPlayed: 0,
         gameMode: '100',
         customTarget: 250,
-        winnerAlreadyRecorded: false
+        matchWinProcessed: false
       };
       handHistory = [];
 
@@ -591,7 +591,7 @@
         handsPlayed: 0,
         gameMode: '100',
         customTarget: 250,
-        winnerAlreadyRecorded: false
+        matchWinProcessed: false
       };
       handHistory = [];
       saveToStorage();
