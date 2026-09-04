@@ -270,15 +270,26 @@
       display: none;
     }
 
-    .badge {
+    .badge-btn {
       display: inline-block;
       background: #e0f2fe;
       color: #0369a1;
-      padding: 4px 10px;
+      padding: 6px 14px;
       border-radius: 20px;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       font-weight: 700;
       margin-bottom: 12px;
+      border: 1px solid #bae6fd;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .badge-btn:hover {
+      background: #bae6fd;
+    }
+
+    .badge-btn:active {
+      transform: scale(0.98);
     }
   </style>
 </head>
@@ -295,7 +306,7 @@
     <!-- SCORER PAGE -->
     <div id="scorerPage" class="page active">
       <div style="text-align: center;">
-        <span id="targetBadge" class="badge">Target: First to 100 Points</span>
+        <button id="targetBadge" class="badge-btn" onclick="openGameTypeModal()">Target: First to 100 Points ▾</button>
       </div>
 
       <div class="score-board">
@@ -314,13 +325,13 @@
           <div class="form-group">
             <label for="typeSelect">Hand Result Type</label>
             <select id="typeSelect">
+              <option value="gin" selected>Gin (25 pt Bonus)</option>
               <option value="knock">Knock / Standard Hand</option>
-              <option value="gin">Gin (25 pt Bonus)</option>
             </select>
           </div>
 
           <!-- GIN SECTION -->
-          <div id="ginSection" class="form-group" style="display:none;">
+          <div id="ginSection" class="form-group">
             <label for="ginWinnerSelect">Who got Gin?</label>
             <select id="ginWinnerSelect">
               <option value="nancy">Nancy</option>
@@ -328,11 +339,11 @@
             </select>
 
             <label for="ginDefenderValue" style="margin-top:12px;">Defender's Total Deadwood</label>
-            <input type="number" id="ginDefenderValue" min="0" max="100" value="">
+            <input type="number" id="ginDefenderValue" min="0" max="100" value="" placeholder="e.g. 15">
           </div>
 
           <!-- KNOCK SECTION -->
-          <div id="knockSection">
+          <div id="knockSection" style="display:none;">
             <div class="form-group">
               <label for="knockerSelect">Who Knocked?</label>
               <select id="knockerSelect">
@@ -412,6 +423,33 @@
     <button id="tabRules" class="nav-btn" onclick="showPage('rulesPage')">⚙️ Rules & Setup</button>
   </nav>
 
+  <!-- GAME TYPE POPUP MODAL -->
+  <div id="gameTypeModal" class="modal">
+    <div class="modal-content" style="text-align: left;">
+      <h2 style="text-align: center; font-size: 1.25rem;">Select Game Type</h2>
+      <p style="text-align: center; font-size: 0.85rem; margin-bottom: 16px;">Choose target score rule for the match.</p>
+      
+      <div class="form-group">
+        <label for="modalGameModeSelect">Target Score Rule</label>
+        <select id="modalGameModeSelect">
+          <option value="100">First to 100 Points (Standard)</option>
+          <option value="custom">Custom Target Score</option>
+          <option value="endless">Endless / Open-Ended Game</option>
+        </select>
+      </div>
+
+      <div id="modalCustomTargetWrapper" class="form-group" style="display:none;">
+        <label for="modalCustomTargetInput">Custom Target Points</label>
+        <input type="number" id="modalCustomTargetInput" min="50" max="1000" step="25" value="250">
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button class="btn-secondary" onclick="closeGameTypeModal()">Cancel</button>
+        <button onclick="applyGameTypeModal()">Apply Target</button>
+      </div>
+    </div>
+  </div>
+
   <!-- WINNER MODAL -->
   <div id="winnerModal" class="modal">
     <div class="modal-content">
@@ -470,6 +508,48 @@
       if (pageId === 'rulesPage') document.getElementById('tabRules').classList.add('active');
       
       scrollToTop();
+    }
+
+    function openGameTypeModal() {
+      const modeSelect = document.getElementById('modalGameModeSelect');
+      const customInput = document.getElementById('modalCustomTargetInput');
+      
+      modeSelect.value = currentGame.gameMode;
+      customInput.value = currentGame.customTarget;
+      modeSelect.disabled = currentGame.handsPlayed > 0;
+      customInput.disabled = currentGame.handsPlayed > 0;
+
+      handleModalGameModeChange();
+      document.getElementById('gameTypeModal').classList.add('active');
+    }
+
+    function closeGameTypeModal() {
+      document.getElementById('gameTypeModal').classList.remove('active');
+    }
+
+    function handleModalGameModeChange() {
+      const mode = document.getElementById('modalGameModeSelect').value;
+      const customWrapper = document.getElementById('modalCustomTargetWrapper');
+      if (mode === 'custom') {
+        customWrapper.style.display = 'block';
+      } else {
+        customWrapper.style.display = 'none';
+      }
+    }
+
+    function applyGameTypeModal() {
+      const mode = document.getElementById('modalGameModeSelect').value;
+      const customVal = parseInt(document.getElementById('modalCustomTargetInput').value) || 250;
+
+      currentGame.gameMode = mode;
+      currentGame.customTarget = customVal;
+      saveToStorage();
+
+      document.getElementById('gameModeSelect').value = mode;
+      document.getElementById('customTargetInput').value = customVal;
+      handleGameModeChange();
+
+      closeGameTypeModal();
     }
 
     function handleFormState() {
@@ -895,13 +975,13 @@
 
       if (mode === '100') {
         customWrapper.style.display = 'none';
-        badge.innerText = 'Target: First to 100 Points';
+        badge.innerText = 'Target: First to 100 Points ▾';
       } else if (mode === 'custom') {
         customWrapper.style.display = 'block';
-        badge.innerText = `Target: First to ${currentGame.customTarget} Points`;
+        badge.innerText = `Target: First to ${currentGame.customTarget} Points ▾`;
       } else if (mode === 'endless') {
         customWrapper.style.display = 'none';
-        badge.innerText = 'Target: Endless / Open-Ended Game';
+        badge.innerText = 'Target: Endless / Open-Ended Game ▾';
       }
     }
 
@@ -921,6 +1001,7 @@
 
       document.getElementById('gameModeSelect').addEventListener('change', handleGameModeChange);
       document.getElementById('customTargetInput').addEventListener('change', handleGameModeChange);
+      document.getElementById('modalGameModeSelect').addEventListener('change', handleModalGameModeChange);
       document.getElementById('typeSelect').addEventListener('change', handleFormState);
       document.getElementById('knockerSelect').addEventListener('change', calculateKnockOutcome);
       document.getElementById('knockerValue').addEventListener('input', calculateKnockOutcome);
