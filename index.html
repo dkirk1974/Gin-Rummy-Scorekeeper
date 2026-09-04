@@ -848,9 +848,7 @@
       darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
     };
 
-    let lifetime = JSON.parse(localStorage.getItem('gin_lifetime_nd')) || defaultLifetime;
-
-    let currentGame = JSON.parse(localStorage.getItem('gin_currentgame_nd')) || {
+    const defaultCurrentGame = {
       nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
       darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
       handsPlayed: 0,
@@ -859,16 +857,36 @@
       matchWinRecorded: false
     };
 
+    // Safe JSON parsing with fallback to prevent white screen crashes from corrupted storage
+    let lifetime, currentGame, handHistory;
+    try {
+      lifetime = JSON.parse(localStorage.getItem('gin_lifetime_nd')) || defaultLifetime;
+    } catch (e) {
+      lifetime = defaultLifetime;
+    }
+
+    try {
+      currentGame = JSON.parse(localStorage.getItem('gin_currentgame_nd')) || defaultCurrentGame;
+    } catch (e) {
+      currentGame = defaultCurrentGame;
+    }
+
+    try {
+      handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
+    } catch (e) {
+      handHistory = [];
+    }
+
     if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
     if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
     if (currentGame.matchWinRecorded === undefined) currentGame.matchWinRecorded = false;
 
-    let handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
-
     function saveToStorage() {
-      localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
-      localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
-      localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
+      try {
+        localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
+        localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
+        localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
+      } catch (e) {}
     }
 
     function handleGameModeChange() {
