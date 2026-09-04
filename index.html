@@ -670,12 +670,6 @@
       `;
     }
 
-    document.getElementById('gameModeSelect').value = currentGame.gameMode;
-    if (currentGame.gameMode === 'custom') {
-      document.getElementById('customTargetInput').value = currentGame.customTarget;
-    }
-    handleGameModeCheckOnLoad();
-
     function handleGameModeCheckOnLoad() {
       handleGameModeChange();
       handleFormState();
@@ -686,4 +680,13 @@
         document.getElementById('resumeModal').classList.add('active');
       }
     }
+
+    // Safely wait for DOM to fully load before initializing elements
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('gameModeSelect').value = currentGame.gameMode;
+      if (currentGame.gameMode === 'custom') {
+        document.getElementById('customTargetInput').value = currentGame.customTarget;
+      }
+      handleGameModeCheckOnLoad();
+    });
   </script>
