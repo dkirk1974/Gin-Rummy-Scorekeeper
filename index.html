@@ -373,11 +373,13 @@
       darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
       handsPlayed: 0,
       gameMode: '100',
-      customTarget: 250
+      customTarget: 250,
+      winnerAlreadyRecorded: false
     };
 
     if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
     if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
+    if (currentGame.winnerAlreadyRecorded === undefined) currentGame.winnerAlreadyRecorded = false;
 
     let handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
 
@@ -474,7 +476,6 @@
           `${winnerNameFormatted} just scored ${pts} points in a single hand, setting a new all-time record!`
         );
       } else if (pts > lifetime[winner].biggestHand) {
-        // Just update personal best without global alert if it didn't break the global record
         lifetime[winner].biggestHand = pts;
       }
 
@@ -523,6 +524,8 @@
           } else if (lifetime[winnerKey].currentStreak > lifetime[winnerKey].maxStreak) {
             lifetime[winnerKey].maxStreak = lifetime[winnerKey].currentStreak;
           }
+
+          currentGame.winnerAlreadyRecorded = true;
           saveToStorage();
 
           setTimeout(() => {
@@ -560,7 +563,7 @@
     }
 
     function finishGame() {
-      if (currentGame.nancy.score !== currentGame.darren.score) {
+      if (!currentGame.winnerAlreadyRecorded && currentGame.nancy.score !== currentGame.darren.score) {
         const matchWinner = currentGame.nancy.score > currentGame.darren.score ? 'nancy' : 'darren';
         const winnerNameFormatted = matchWinner === 'nancy' ? 'Nancy' : 'Darren';
         const opposingKey = matchWinner === 'nancy' ? 'darren' : 'nancy';
@@ -588,7 +591,8 @@
         darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
         handsPlayed: 0,
         gameMode: '100',
-        customTarget: 250
+        customTarget: 250,
+        winnerAlreadyRecorded: false
       };
       handHistory = [];
 
@@ -605,7 +609,8 @@
         darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
         handsPlayed: 0,
         gameMode: '100',
-        customTarget: 250
+        customTarget: 250,
+        winnerAlreadyRecorded: false
       };
       handHistory = [];
       saveToStorage();
