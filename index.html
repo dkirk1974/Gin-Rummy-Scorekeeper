@@ -1,4 +1,461 @@
-<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gin Rummy Scorer</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding-bottom: 70px;
+    }
+
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .score-board {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .score-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .score-card h3 {
+      font-size: 1rem;
+      color: var(--text-light);
+      margin-bottom: 4px;
+    }
+
+    .score-card .score {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    select, input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--text);
+      outline: none;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      background: var(--primary);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--text-light);
+    }
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .preview-banner {
+      display: none;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-weight: 600;
+      text-align: center;
+      font-size: 0.95rem;
+    }
+
+    .preview-knock {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    .preview-undercut {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      z-index: 10;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--text-light);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 1;
+      text-align: center;
+      padding: 4px 0;
+    }
+
+    .nav-btn.active {
+      color: var(--primary);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.875rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #f1f5f9;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .modal-content h2 {
+      margin-bottom: 8px;
+      font-size: 1.5rem;
+    }
+
+    .modal-content p {
+      color: var(--text-light);
+      margin-bottom: 20px;
+    }
+
+    #fxCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 99;
+      display: none;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="fxCanvas"></canvas>
+
+  <header>
+    <h1>Gin Rummy Scorekeeper</h1>
+  </header>
+
+  <div class="container">
+
+    <!-- SCORER PAGE -->
+    <div id="scorerPage" class="page active">
+      <div style="text-align: center;">
+        <span id="targetBadge" class="badge">Target: First to 100 Points</span>
+      </div>
+
+      <div class="score-board">
+        <div class="score-card">
+          <h3>Nancy</h3>
+          <div id="p1Score" class="score">0</div>
+        </div>
+        <div class="score-card">
+          <h3>Darren</h3>
+          <div id="p2Score" class="score">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <form id="handForm">
+          <div class="form-group">
+            <label for="typeSelect">Hand Result Type</label>
+            <select id="typeSelect">
+              <option value="knock">Knock / Standard Hand</option>
+              <option value="gin">Gin (25 pt Bonus)</option>
+            </select>
+          </div>
+
+          <!-- GIN SECTION -->
+          <div id="ginSection" class="form-group" style="display:none;">
+            <label for="ginWinnerSelect">Who got Gin?</label>
+            <select id="ginWinnerSelect">
+              <option value="nancy">Nancy</option>
+              <option value="darren">Darren</option>
+            </select>
+
+            <label for="ginDefenderValue" style="margin-top:12px;">Defender's Total Deadwood</label>
+            <input type="number" id="ginDefenderValue" min="0" max="100" value="0">
+          </div>
+
+          <!-- KNOCK SECTION -->
+          <div id="knockSection">
+            <div class="form-group">
+              <label for="knockerSelect">Who Knocked?</label>
+              <select id="knockerSelect">
+                <option value="nancy">Nancy</option>
+                <option value="darren">Darren</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="knockerValue">Knocker's Deadwood</label>
+              <input type="number" id="knockerValue" min="0" max="10" value="0">
+            </div>
+
+            <div class="form-group">
+              <label for="defenderValue">Defender's Deadwood</label>
+              <input type="number" id="defenderValue" min="0" max="100" value="0">
+            </div>
+
+            <div id="knockPreviewBanner" class="preview-banner"></div>
+          </div>
+
+          <button type="submit" style="margin-top: 16px;">Record Hand</button>
+        </form>
+
+        <button id="undoBtn" class="btn-secondary" onclick="undoLastHand()" style="display:none; margin-top:10px;">↩ Undo Last Entry</button>
+      </div>
+    </div>
+
+    <!-- STATS PAGE -->
+    <div id="statsPage" class="page">
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 12px;">Current Game Statistics</h2>
+        <div id="gameStats">No hands played yet in current game.</div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 12px;">Lifetime Statistics</h2>
+        <div id="lifetimeStats">Loading lifetime records...</div>
+        <button class="btn-danger" onclick="showResetModal()" style="margin-top: 16px; font-size:0.85rem; padding:8px;">Reset Lifetime Stats</button>
+      </div>
+    </div>
+
+    <!-- RULES & SETUP PAGE -->
+    <div id="rulesPage" class="page">
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 12px;">Game Mode Setup</h2>
+        <div class="form-group">
+          <label for="gameModeSelect">Target Score Rule</label>
+          <select id="gameModeSelect">
+            <option value="100">First to 100 Points (Standard)</option>
+            <option value="custom">Custom Target Score</option>
+            <option value="endless">Endless / Open-Ended Game</option>
+          </select>
+        </div>
+
+        <div id="customTargetWrapper" class="form-group" style="display:none;">
+          <label for="customTargetInput">Custom Target Points</label>
+          <input type="number" id="customTargetInput" min="50" max="1000" step="25" value="250">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size: 1.1rem; margin-bottom: 12px;">Scoring Rules</h2>
+        <ul style="padding-left: 20px; font-size: 0.9rem; color: var(--text-light);">
+          <li style="margin-bottom: 8px;"><strong>Knocking:</strong> The knocker scores the difference if their deadwood is lower than the defender's.</li>
+          <li style="margin-bottom: 8px;"><strong>Undercut:</strong> If the defender's deadwood is less than or equal to the knocker's deadwood, the defender wins the difference plus a 25-point bonus.</li>
+          <li style="margin-bottom: 8px;"><strong>Gin:</strong> The player with Gin scores the defender's total deadwood plus a 25-point bonus.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <nav>
+    <button id="tabScorer" class="nav-btn active" onclick="showPage('scorerPage')">📋 Scorer</button>
+    <button id="tabStats" class="nav-btn" onclick="showPage('statsPage')">📊 Statistics</button>
+    <button id="tabRules" class="nav-btn" onclick="showPage('rulesPage')">⚙️ Rules & Setup</button>
+  </nav>
+
+  <!-- WINNER MODAL -->
+  <div id="winnerModal" class="modal">
+    <div class="modal-content">
+      <h2 id="modalWinnerTitle">🎉 Winner! 🎉</h2>
+      <p id="modalWinnerSub">Target reached!</p>
+      <button onclick="closeWinnerModal()">Start New Game</button>
+    </div>
+  </div>
+
+  <!-- MILESTONE MODAL -->
+  <div id="milestoneModal" class="modal">
+    <div class="modal-content">
+      <div id="milestoneModalIcon" style="font-size: 2.5rem; margin-bottom: 8px;">🎆</div>
+      <h2 id="milestoneModalTitle">Record Set!</h2>
+      <p id="milestoneModalSub">Details here</p>
+      <button onclick="closeMilestoneModal()">Awesome!</button>
+    </div>
+  </div>
+
+  <!-- RESET CONFIRMATION MODAL -->
+  <div id="resetModal" class="modal">
+    <div class="modal-content">
+      <h2>Reset Lifetime Stats?</h2>
+      <p>This will permanently erase all lifetime history and records across games. This cannot be undone.</p>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-secondary" onclick="closeResetModal()">Cancel</button>
+        <button class="btn-danger" onclick="confirmResetStats()">Yes, Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESUME GAME MODAL -->
+  <div id="resumeModal" class="modal">
+    <div class="modal-content">
+      <h2>Active Game Found</h2>
+      <p>Would you like to resume your previous game in progress or start fresh?</p>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-secondary" onclick="startFreshGame()">Start Fresh</button>
+        <button onclick="closeResumeModal()">Resume Game</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
     function scrollToTop() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -718,3 +1175,5 @@
       `;
     }
   </script>
+</body>
+</html>
