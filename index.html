@@ -958,44 +958,37 @@
       matchWinRecorded: false
     };
 
-   // Load data from Firestore cloud database asynchronously
-let lifetime, currentGame, handHistory;
+// 1. Set immediate default values so your UI and buttons render instantly on load
+let lifetime = typeof defaultLifetime !== 'undefined' ? defaultLifetime : {};
+let currentGame = typeof defaultCurrentGame !== 'undefined' ? defaultCurrentGame : {};
+let handHistory = [];
 
-async function loadAppData() {
+// 2. Fetch data from Firestore in the background and update your app state
+async function loadAppDataFromCloud() {
   try {
-    // 1. Load lifetime stats
     const lifetimeSnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"));
-    lifetime = lifetimeSnap.exists() ? lifetimeSnap.data() : defaultLifetime;
+    if (lifetimeSnap.exists()) lifetime = lifetimeSnap.data();
 
-    // 2. Load current game state
     const gameSnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"));
-    currentGame = gameSnap.exists() ? gameSnap.data() : defaultCurrentGame;
+    if (gameSnap.exists()) currentGame = gameSnap.data();
 
-    // 3. Load hand history
     const historySnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"));
-    handHistory = historySnap.exists() ? historySnap.data().items : [];
+    if (historySnap.exists() && historySnap.data().items) {
+      handHistory = historySnap.data().items;
+    }
 
-    console.log("Cloud data loaded successfully!");
+    console.log("Cloud data synced successfully!");
   } catch (error) {
-    console.error("Error loading from cloud, using defaults:", error);
-    lifetime = defaultLifetime;
-    currentGame = defaultCurrentGame;
-    handHistory = [];
+    console.error("Error loading from cloud, keeping defaults:", error);
   }
   
-  // Run your existing post-load checks
-  if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
-  if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
+  if (currentGame.nancy && currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
+  if (currentGame.darren && currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
   if (currentGame.matchWinRecorded === undefined) currentGame.matchWinRecorded = false;
 }
 
-// Kick off the load when the page opens
-loadAppData();
-
-    if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
-    if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
-    if (currentGame.matchWinRecorded === undefined) currentGame.matchWinRecorded = false;
-
+// Kick off the cloud sync
+loadAppDataFromCloud();
 async function saveToStorage() {
   try {
     // Save each dataset into your Firestore collection
