@@ -958,24 +958,39 @@
       matchWinRecorded: false
     };
 
-    let lifetime, currentGame, handHistory;
-    try {
-      lifetime = JSON.parse(localStorage.getItem('gin_lifetime_nd')) || defaultLifetime;
-    } catch (e) {
-      lifetime = defaultLifetime;
-    }
+   // Load data from Firestore cloud database asynchronously
+let lifetime, currentGame, handHistory;
 
-    try {
-      currentGame = JSON.parse(localStorage.getItem('gin_currentgame_nd')) || defaultCurrentGame;
-    } catch (e) {
-      currentGame = defaultCurrentGame;
-    }
+async function loadAppData() {
+  try {
+    // 1. Load lifetime stats
+    const lifetimeSnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"));
+    lifetime = lifetimeSnap.exists() ? lifetimeSnap.data() : defaultLifetime;
 
-    try {
-      handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
-    } catch (e) {
-      handHistory = [];
-    }
+    // 2. Load current game state
+    const gameSnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"));
+    currentGame = gameSnap.exists() ? gameSnap.data() : defaultCurrentGame;
+
+    // 3. Load hand history
+    const historySnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"));
+    handHistory = historySnap.exists() ? historySnap.data().items : [];
+
+    console.log("Cloud data loaded successfully!");
+  } catch (error) {
+    console.error("Error loading from cloud, using defaults:", error);
+    lifetime = defaultLifetime;
+    currentGame = defaultCurrentGame;
+    handHistory = [];
+  }
+  
+  // Run your existing post-load checks
+  if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
+  if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
+  if (currentGame.matchWinRecorded === undefined) currentGame.matchWinRecorded = false;
+}
+
+// Kick off the load when the page opens
+loadAppData();
 
     if (currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
     if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
