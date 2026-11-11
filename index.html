@@ -1135,7 +1135,7 @@
       }
     });
 
-    function undoLastHand() {
+function undoLastHand() {
       if (handHistory.length === 0 || currentGame.handsPlayed === 0) return;
 
       const lastHand = handHistory.pop();
@@ -1156,6 +1156,18 @@
       lifetime[winner].totalPoints -= pts;
       lifetime[loser].totalDeadwoodCaught -= loserDw;
       lifetime[loser].handsLost -= 1;
+
+      // Check if scores dropped back below target, and unlock the match if so
+      const mode = currentGame.gameMode;
+      let target = null;
+      if (mode === '100') target = 100;
+      else if (mode === 'custom') target = currentGame.customTarget;
+
+      if (target !== null) {
+        if (currentGame.nancy.score < target && currentGame.darren.score < target) {
+          currentGame.matchWinRecorded = false;
+        }
+      }
 
       saveToStorage();
       updateUI();
