@@ -1,11 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-3   <head>
-4     <!-- Paste the Firebase script block right here -->
-5     <meta charset="UTF-8">
-6     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-7     <title>Gin Rummy Scorer</title>
-8     <style>
+<head>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8Hvv2y9eKQKI_Za9BRxDko2AOnWzLNn8",
+      authDomain: "gin-rummy-score.firebaseapp.com",
+      projectId: "gin-rummy-score",
+      storageBucket: "gin-rummy-score.firebasestorage.app",
+      messagingSenderId: "194625048091",
+      appId: "1:194625048091:web:0695f21dc0b4727993f2be",
+      measurementId: "G-03WGFDJHV1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.db = db;
+    window.fsDoc = doc;
+    window.fsSetDoc = setDoc;
+    window.fsGetDoc = getDoc;
+    console.log("Firebase initialized successfully!");
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gin Rummy Scorer</title>
+<style>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
