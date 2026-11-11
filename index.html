@@ -996,13 +996,18 @@ loadAppData();
     if (currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
     if (currentGame.matchWinRecorded === undefined) currentGame.matchWinRecorded = false;
 
-    function saveToStorage() {
-      try {
-        localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
-        localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
-        localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
-      } catch (e) {}
-    }
+async function saveToStorage() {
+  try {
+    // Save each dataset into your Firestore collection
+    await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"), lifetime);
+    await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"), currentGame);
+    await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"), { items: handHistory });
+    
+    console.log("Cloud data saved successfully!");
+  } catch (error) {
+    console.error("Error saving to cloud:", error);
+  }
+}
 
     function handleGameModeChange() {
       const mode = document.getElementById('gameModeSelect').value;
