@@ -308,15 +308,15 @@
 
           <div id="ginSection">
             <div class="form-group">
-              <label for="ginDefenderValue">Defender Deadwood Points</label>
-              <input type="number" id="ginDefenderValue" min="0" value="" placeholder="Enter deadwood">
-            </div>
-            <div class="form-group">
               <label for="ginWinnerSelect">Who got Gin?</label>
               <select id="ginWinnerSelect">
                 <option value="nancy">Nancy</option>
                 <option value="darren">Darren</option>
               </select>
+            </div>
+            <div class="form-group">
+              <label for="ginDefenderValue">Defender Deadwood Points</label>
+              <input type="number" id="ginDefenderValue" min="0" value="" placeholder="Enter deadwood">
             </div>
           </div>
 
@@ -361,6 +361,7 @@
       <div class="card">
         <h3 style="margin-bottom: 10px;">Lifetime Statistics</h3>
         <div id="lifetimeStats">Loading lifetime stats...</div>
+        <button type="button" id="clearLifetimeBtn" class="btn btn-danger" style="margin-top: 16px;">Delete All Lifetime Records</button>
       </div>
     </div>
 
@@ -577,7 +578,7 @@
     function submitHand(event) {
       event.preventDefault();
 
-      // If previous match was won, automatically roll over into a fresh game before recording this hand
+      // Automatically rollover if previous match was won
       if (currentGame.matchWinRecorded) {
         currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
         handHistory = [];
@@ -623,10 +624,11 @@
 
       currentGame.handsPlayed += 1;
 
-      let milestoneMsg = "";
+      // Milestone & Record Celebrations Check
+      let milestoneMsgs = [];
       if (pts > lifetime[winner].biggestHand) {
         lifetime[winner].biggestHand = pts;
-        milestoneMsg = `🌟 New Lifetime Record! Biggest hand score for ${winner.toUpperCase()} (${pts} pts)!`;
+        milestoneMsgs.push(`🌟 New Lifetime Record! Biggest hand score for ${winner.toUpperCase()} (${pts} pts)!`);
       }
 
       const target = currentGame.gameMode === 'custom' ? currentGame.customTarget : parseInt(currentGame.gameMode);
@@ -636,12 +638,17 @@
         lifetime.gamesPlayed += 1;
         lifetime[winner].matchWins += 1;
         lifetime[winner].currentStreak += 1;
-        lifetime[winner].maxStreak = Math.max(lifetime[winner].maxStreak, lifetime[winner].currentStreak);
+        
+        if (lifetime[winner].currentStreak > lifetime[winner].maxStreak) {
+          lifetime[winner].maxStreak = lifetime[winner].currentStreak;
+          milestoneMsgs.push(`🔥 New Longest Win Streak for ${winner.toUpperCase()} (${lifetime[winner].maxStreak} matches)!`);
+        }
         lifetime[loser].currentStreak = 0;
 
-        showModal("🎉 Match Won!", `${winner.toUpperCase()} has won the match with ${currentGame[winner].score} points!`);
-      } else if (milestoneMsg) {
-        showModal("Milestone Reached!", milestoneMsg);
+        milestoneMsgs.unshift(`🎉 Match Won! ${winner.toUpperCase()} has won the match with ${currentGame[winner].score} points!`);
+        showModal("Celebration!", milestoneMsgs.join("\n\n"));
+      } else if (milestoneMsgs.length > 0) {
+        showModal("Milestone Reached!", milestoneMsgs.join("\n\n"));
       }
 
       saveToStorage();
@@ -683,12 +690,20 @@
     }
 
     function resetCurrentGame() {
-      // Direct reset without confirmation popup
       currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
       handHistory = [];
       saveToStorage();
       updateUI();
       renderHandHistory();
+    }
+
+    function clearAllLifetimeRecords() {
+      if (confirm("Are you sure you want to delete all historical lifetime stats and records? This cannot be undone.")) {
+        lifetime = JSON.parse(JSON.stringify(defaultLifetime));
+        saveToStorage();
+        updateStatsDisplay();
+        showModal("Cleared", "All lifetime records have been successfully reset.");
+      }
     }
 
     function updateUI() {
@@ -795,19 +810,4 @@
       
       document.getElementById('knockerSelect').addEventListener('change', calculateKnockOutcome);
       document.getElementById('knockerValue').addEventListener('input', calculateKnockOutcome);
-      document.getElementById('defenderValue').addEventListener('input', calculateKnockOutcome);
-
-      // Buttons & Forms
-      document.getElementById('handForm').addEventListener('submit', submitHand);
-      document.getElementById('undoBtn').addEventListener('click', undoLastHand);
-      document.getElementById('resetBtn').addEventListener('click', resetCurrentGame);
-      document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
-
-      // Initial UI setup
-      updateUI();
-      renderHandHistory();
-      syncCloudDataToApp();
-    });
-  </script>
-</body>
-</html>
+      document.getElementById('defenderValue').addEventListener('input',
