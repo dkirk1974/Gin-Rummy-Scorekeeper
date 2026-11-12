@@ -246,7 +246,7 @@
     <div class="modal-content">
       <h3 id="modalTitle" style="color: var(--primary); margin-bottom: 10px;">Celebration</h3>
       <p id="modalMessage" style="margin-bottom: 20px; font-size: 1rem; color: var(--text);"></p>
-      <button class="btn" onclick="closeModal()">Awesome!</button>
+      <button class="btn" id="modalCloseBtn">Awesome!</button>
     </div>
   </div>
 
@@ -258,9 +258,9 @@
 
     <!-- Navigation Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('scoring', this)">Scoring</button>
-      <button class="tab-btn" onclick="switchTab('records', this)">Records & Stats</button>
-      <button class="tab-btn" onclick="switchTab('rules', this)">Rules</button>
+      <button class="tab-btn active" data-tab="scoring">Scoring</button>
+      <button class="tab-btn" data-tab="records">Records & Stats</button>
+      <button class="tab-btn" data-tab="rules">Rules</button>
     </div>
 
     <!-- SCORING VIEW -->
@@ -281,7 +281,7 @@
 
         <div class="form-group">
           <label for="gameModeSelect">Game Target Mode</label>
-          <select id="gameModeSelect" onchange="handleGameModeChange()">
+          <select id="gameModeSelect">
             <option value="100">First to 100 Points</option>
             <option value="250">First to 250 Points</option>
             <option value="custom">Custom Target</option>
@@ -290,17 +290,17 @@
 
         <div id="customTargetWrapper" class="form-group" style="display:none;">
           <label for="customTargetInput">Custom Target Score</label>
-          <input type="number" id="customTargetInput" value="250" onchange="handleGameModeChange()">
+          <input type="number" id="customTargetInput" value="250">
         </div>
       </div>
 
       <!-- Record Hand Card -->
       <div class="card">
         <h3 style="margin-bottom: 14px; font-size: 1.1rem;">Record Hand</h3>
-        <form id="handForm" onsubmit="submitHand(event)">
+        <form id="handForm">
           <div class="form-group">
             <label for="typeSelect">Hand Result Type</label>
-            <select id="typeSelect" onchange="handleFormState()">
+            <select id="typeSelect">
               <option value="gin">Gin</option>
               <option value="knock">Knock</option>
             </select>
@@ -323,26 +323,26 @@
           <div id="knockSection" style="display: none;">
             <div class="form-group">
               <label for="knockerSelect">Who Knocked?</label>
-              <select id="knockerSelect" onchange="calculateKnockOutcome()">
+              <select id="knockerSelect">
                 <option value="nancy">Nancy</option>
                 <option value="darren">Darren</option>
               </select>
             </div>
             <div class="form-group">
               <label for="knockerValue">Knocker Deadwood Points</label>
-              <input type="number" id="knockerValue" min="0" value="" placeholder="0 to 10" oninput="calculateKnockOutcome()">
+              <input type="number" id="knockerValue" min="0" value="" placeholder="0 to 10">
             </div>
             <div class="form-group">
               <label for="defenderValue">Defender Deadwood Points</label>
-              <input type="number" id="defenderValue" min="0" value="" placeholder="Enter deadwood" oninput="calculateKnockOutcome()">
+              <input type="number" id="defenderValue" min="0" value="" placeholder="Enter deadwood">
             </div>
             <div id="knockResultPreview" style="font-size: 0.9rem; font-weight: 600; color: var(--primary); margin-bottom: 14px;"></div>
           </div>
 
           <button type="submit" id="submitHandBtn" class="btn">Submit Hand Score</button>
         </form>
-        <button class="btn btn-secondary" onclick="undoLastHand()">Undo Last Hand</button>
-        <button class="btn btn-danger" onclick="resetCurrentGame()">Start New Game</button>
+        <button type="button" id="undoBtn" class="btn btn-secondary">Undo Last Hand</button>
+        <button type="button" id="resetBtn" class="btn btn-danger">Start New Game</button>
       </div>
 
       <!-- Hand History Log -->
@@ -502,8 +502,8 @@
       }
     }
 
-    // UI Tab Navigation (Bulletproofed with element passing)
-    function switchTab(tabName, btn) {
+    // UI Tab Navigation
+    function switchTab(tabName, btnElement) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
@@ -515,7 +515,7 @@
       } else if (tabName === 'rules') {
         document.getElementById('rulesView').classList.add('active');
       }
-      if (btn) btn.classList.add('active');
+      if (btnElement) btnElement.classList.add('active');
     }
 
     function handleGameModeChange() {
@@ -709,11 +709,7 @@
 
       const submitBtn = document.getElementById('submitHandBtn');
       if (submitBtn) {
-        if (currentGame.matchWinRecorded) {
-          submitBtn.style.display = 'none';
-        } else {
-          submitBtn.style.display = 'block';
-        }
+        submitBtn.style.display = currentGame.matchWinRecorded ? 'none' : 'block';
       }
     }
 
@@ -787,10 +783,35 @@
       }
     }
 
-    // Initialize application on load
-    updateUI();
-    renderHandHistory();
-    syncCloudDataToApp();
+    // Programmatic Event Listener Wiring (Guarantees all buttons & tabs respond)
+    document.addEventListener('DOMContentLoaded', () => {
+      // Tab Navigation
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          switchTab(e.currentTarget.getAttribute('data-tab'), e.currentTarget);
+        });
+      });
+
+      // Form & Dropdowns
+      document.getElementById('gameModeSelect').addEventListener('change', handleGameModeChange);
+      document.getElementById('customTargetInput').addEventListener('input', handleGameModeChange);
+      document.getElementById('typeSelect').addEventListener('change', handleFormState);
+      
+      document.getElementById('knockerSelect').addEventListener('change', calculateKnockOutcome);
+      document.getElementById('knockerValue').addEventListener('input', calculateKnockOutcome);
+      document.getElementById('defenderValue').addEventListener('input', calculateKnockOutcome);
+
+      // Buttons & Forms
+      document.getElementById('handForm').addEventListener('submit', submitHand);
+      document.getElementById('undoBtn').addEventListener('click', undoLastHand);
+      document.getElementById('resetBtn').addEventListener('click', resetCurrentGame);
+      document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+
+      // Initial UI setup
+      updateUI();
+      renderHandHistory();
+      syncCloudDataToApp();
+    });
   </script>
 </body>
 </html>
