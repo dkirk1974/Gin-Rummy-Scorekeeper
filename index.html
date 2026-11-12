@@ -180,6 +180,7 @@
       font-weight: 600;
       cursor: pointer;
       transition: background 0.2s;
+      margin-top: 8px;
     }
 
     button.btn:hover {
@@ -188,7 +189,14 @@
 
     button.btn-secondary {
       background: var(--text-light);
-      margin-top: 8px;
+    }
+
+    button.btn-danger {
+      background: var(--danger);
+    }
+
+    button.btn-danger:hover {
+      background: #dc2626;
     }
 
     /* Tables */
@@ -221,9 +229,9 @@
 
     <!-- Navigation Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('scoring')">Scoring</button>
-      <button class="tab-btn" onclick="switchTab('records')">Records & Stats</button>
-      <button class="tab-btn" onclick="switchTab('rules')">Rules</button>
+      <button class="tab-btn active" onclick="switchTab('scoring', event)">Scoring</button>
+      <button class="tab-btn" onclick="switchTab('records', event)">Records & Stats</button>
+      <button class="tab-btn" onclick="switchTab('rules', event)">Rules</button>
     </div>
 
     <!-- SCORING VIEW -->
@@ -304,7 +312,14 @@
 
           <button type="submit" class="btn">Submit Hand Score</button>
         </form>
-        <button class="btn btn-secondary" onclick="resetCurrentGame()">Reset Current Game</button>
+        <button class="btn btn-secondary" onclick="undoLastHand()">Undo Last Hand</button>
+        <button class="btn btn-danger" onclick="resetCurrentGame()">Reset Current Game</button>
+      </div>
+
+      <!-- Hand History Log -->
+      <div class="card">
+        <h3 style="margin-bottom: 10px; font-size: 1.1rem;">Hand History (Current Game)</h3>
+        <div id="handHistoryList" style="font-size: 0.9rem; color: var(--text-light);">No hands recorded yet.</div>
       </div>
     </div>
 
@@ -324,7 +339,7 @@
     <div id="rulesView" class="view-section">
       <div class="card">
         <h3 style="margin-bottom: 10px;">Gin Rummy Scoring Rules</h3>
-        <p style="margin-bottom: 8px; font-size: 0.95ln; color: var(--text-light);"><strong>Gin:</strong> A player with zero deadwood scores the defender's deadwood plus a 25-point bonus.</p>
+        <p style="margin-bottom: 8px; font-size: 0.95rem; color: var(--text-light);"><strong>Gin:</strong> A player with zero deadwood scores the defender's deadwood plus a 25-point bonus.</p>
         <p style="margin-bottom: 8px; font-size: 0.95rem; color: var(--text-light);"><strong>Knocking:</strong> A player with 10 or fewer points of deadwood can knock. If their deadwood is lower than the defender's, they win the difference.</p>
         <p style="font-size: 0.95rem; color: var(--text-light);"><strong>Undercut:</strong> If the defender's deadwood is less than or equal to the knocker's deadwood, the defender wins and scores the difference plus a 25-point undercut bonus.</p>
       </div>
@@ -379,6 +394,7 @@
           await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"), lifetime);
           await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"), currentGame);
           await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"), { items: handHistory });
+          console.log("Data saved to cloud & local storage.");
         }
       } catch (error) {
         console.error("Error saving data:", error);
@@ -400,13 +416,14 @@
           handHistory = historySnap.data().items;
         }
         updateUI();
+        renderHandHistory();
       } catch (error) {
         console.error("Background sync error:", error);
       }
     }
 
     // UI Tab Navigation
-    function switchTab(tabName) {
+    function switchTab(tabName, event) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
@@ -464,12 +481,10 @@
       }
 
       if (knockerDw < defenderDw) {
-        // Normal knock win
         const pts = defenderDw - knockerDw;
         preview.innerText = `${knocker.charAt(0).toUpperCase() + knocker.slice(1)} wins ${pts} points.`;
         return { winner: knocker, loser: defender, pts: pts, loserDw: defenderDw };
       } else {
-        // Undercut
         const pts = (knockerDw - defenderDw) + 25;
         preview.innerText = `UNDERCUT! ${defender.charAt(0).toUpperCase() + defender.slice(1)} wins ${pts} points (Diff + 25).`;
         return { winner: defender, loser: knocker, pts: pts, loserDw: knockerDw };
@@ -478,7 +493,10 @@
 
     function submitHand(event) {
       event.preventDefault();
-      if (currentGame.matchWinRecorded) return;
+      if (currentGame.matchWinRecorded) {
+        alert("Match has already been won! Reset the game to start a new match.");
+        return;
+      }
 
       const type = document.getElementById('typeSelect').value;
       let winner, loser, pts, loserDw;
@@ -497,6 +515,10 @@
         loserDw = result.loserDw;
       }
 
+      // Record hand snapshot for undo support
+      const handRecord = { type, winner, loser, pts, loserDw };
+      handHistory.push(handRecord);
+
       // Update current game scores
       currentGame[winner].score += pts;
       currentGame[winner].handsWon += 1;
@@ -509,7 +531,7 @@
 
       currentGame.handsPlayed += 1;
 
-      // Check for match win target
+      // Check target
       const target = currentGame.gameMode === 'custom' ? currentGame.customTarget : parseInt(currentGame.gameMode);
       if (currentGame[winner].score >= target) {
         currentGame.matchWinRecorded = true;
@@ -517,25 +539,54 @@
         lifetime[winner].matchWins += 1;
         lifetime[winner].currentStreak += 1;
         lifetime[winner].maxStreak = Math.max(lifetime[winner].maxStreak, lifetime[winner].currentStreak);
-        
         lifetime[loser].currentStreak = 0;
       }
 
-      // Track lifetime biggest hand
       if (pts > lifetime[winner].biggestHand) {
         lifetime[winner].biggestHand = pts;
       }
 
       saveToStorage();
       updateUI();
+      renderHandHistory();
       document.getElementById('handForm').reset();
       handleFormState();
     }
 
-    function resetCurrentGame() {
-      currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
+    function undoLastHand() {
+      if (handHistory.length === 0) {
+        alert("No hands to undo.");
+        return;
+      }
+
+      const lastHand = handHistory.pop();
+      const { winner, loser, pts, loserDw } = lastHand;
+
+      // Reverse score updates
+      currentGame[winner].score -= pts;
+      currentGame[winner].handsWon -= 1;
+      currentGame[winner].totalPoints -= pts;
+      currentGame[winner].consecutiveHandsWon = Math.max(0, currentGame[winner].consecutiveHandsWon - 1);
+
+      currentGame[loser].handsLost = Math.max(0, currentGame[loser].handsLost - 1);
+      currentGame[loser].totalDeadwoodCaught -= loserDw;
+
+      currentGame.handsPlayed = Math.max(0, currentGame.handsPlayed - 1);
+      currentGame.matchWinRecorded = false; // allow play to resume if target was met
+
       saveToStorage();
       updateUI();
+      renderHandHistory();
+    }
+
+    function resetCurrentGame() {
+      if (confirm("Are you sure you want to reset the current game?")) {
+        currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
+        handHistory = [];
+        saveToStorage();
+        updateUI();
+        renderHandHistory();
+      }
     }
 
     function updateUI() {
@@ -550,7 +601,29 @@
       if (currentGame.gameMode === 'custom') {
         document.getElementById('customTargetWrapper').style.display = 'block';
         document.getElementById('customTargetInput').value = currentGame.customTarget;
+      } else {
+        document.getElementById('customTargetWrapper').style.display = 'none';
       }
+    }
+
+    function renderHandHistory() {
+      const container = document.getElementById('handHistoryList');
+      if (handHistory.length === 0) {
+        container.innerHTML = "No hands recorded yet.";
+        return;
+      }
+
+      let html = `<table><tr><th>#</th><th>Winner</th><th>Type</th><th>Pts</th></tr>`;
+      handHistory.forEach((h, index) => {
+        html += `<tr>
+          <td>${index + 1}</td>
+          <td style="text-transform: capitalize; font-weight: 600;">${h.winner}</td>
+          <td style="text-transform: uppercase;">${h.type}</td>
+          <td>+${h.pts}</td>
+        </tr>`;
+      });
+      html += `</table>`;
+      container.innerHTML = html;
     }
 
     function updateStatsDisplay() {
@@ -598,6 +671,7 @@
 
     // Initialize application on load
     updateUI();
+    renderHandHistory();
     syncCloudDataToApp();
   </script>
 </body>
