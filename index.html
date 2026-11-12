@@ -258,9 +258,9 @@
 
     <!-- Navigation Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('scoring', event)">Scoring</button>
-      <button class="tab-btn" onclick="switchTab('records', event)">Records & Stats</button>
-      <button class="tab-btn" onclick="switchTab('rules', event)">Rules</button>
+      <button class="tab-btn active" onclick="switchTab('scoring', this)">Scoring</button>
+      <button class="tab-btn" onclick="switchTab('records', this)">Records & Stats</button>
+      <button class="tab-btn" onclick="switchTab('rules', this)">Rules</button>
     </div>
 
     <!-- SCORING VIEW -->
@@ -502,22 +502,20 @@
       }
     }
 
-    // UI Tab Navigation
-    function switchTab(tabName, event) {
+    // UI Tab Navigation (Bulletproofed with element passing)
+    function switchTab(tabName, btn) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
       if (tabName === 'scoring') {
         document.getElementById('scoringView').classList.add('active');
-        event.currentTarget.classList.add('active');
       } else if (tabName === 'records') {
         document.getElementById('recordsView').classList.add('active');
-        event.currentTarget.classList.add('active');
         updateStatsDisplay();
       } else if (tabName === 'rules') {
         document.getElementById('rulesView').classList.add('active');
-        event.currentTarget.classList.add('active');
       }
+      if (btn) btn.classList.add('active');
     }
 
     function handleGameModeChange() {
@@ -660,7 +658,6 @@
       const lastHand = handHistory.pop();
       const { winner, loser, pts, loserDw } = lastHand;
 
-      // If we are undoing a hand that previously triggered a match win, revert win counters
       if (currentGame.matchWinRecorded) {
         lifetime.gamesPlayed = Math.max(0, lifetime.gamesPlayed - 1);
         lifetime[winner].matchWins = Math.max(0, lifetime[winner].matchWins - 1);
@@ -710,17 +707,19 @@
         document.getElementById('customTargetWrapper').style.display = 'none';
       }
 
-      // Hide or show Submit Hand button based on whether match is won
       const submitBtn = document.getElementById('submitHandBtn');
-      if (currentGame.matchWinRecorded) {
-        submitBtn.style.display = 'none';
-      } else {
-        submitBtn.style.display = 'block';
+      if (submitBtn) {
+        if (currentGame.matchWinRecorded) {
+          submitBtn.style.display = 'none';
+        } else {
+          submitBtn.style.display = 'block';
+        }
       }
     }
 
     function renderHandHistory() {
       const container = document.getElementById('handHistoryList');
+      if (!container) return;
       if (handHistory.length === 0) {
         container.innerHTML = "No hands recorded yet.";
         return;
@@ -741,45 +740,51 @@
 
     function updateStatsDisplay() {
       const totalH = currentGame.handsPlayed;
-      if (totalH > 0) {
-        const nWinPct = ((currentGame.nancy.handsWon / totalH) * 100).toFixed(1);
-        const dWinPct = ((currentGame.darren.handsWon / totalH) * 100).toFixed(1);
-        const nAvgPts = currentGame.nancy.handsWon ? (currentGame.nancy.totalPoints / currentGame.nancy.handsWon).toFixed(1) : '0.0';
-        const dAvgPts = currentGame.darren.handsWon ? (currentGame.darren.totalPoints / currentGame.darren.handsWon).toFixed(1) : '0.0';
-        const nAvgDw = currentGame.nancy.handsLost ? (currentGame.nancy.totalDeadwoodCaught / currentGame.nancy.handsLost).toFixed(1) : '0.0';
-        const dAvgDw = currentGame.darren.handsLost ? (currentGame.darren.totalDeadwoodCaught / currentGame.darren.handsLost).toFixed(1) : '0.0';
+      const gameStatsEl = document.getElementById('gameStats');
+      if (gameStatsEl) {
+        if (totalH > 0) {
+          const nWinPct = ((currentGame.nancy.handsWon / totalH) * 100).toFixed(1);
+          const dWinPct = ((currentGame.darren.handsWon / totalH) * 100).toFixed(1);
+          const nAvgPts = currentGame.nancy.handsWon ? (currentGame.nancy.totalPoints / currentGame.nancy.handsWon).toFixed(1) : '0.0';
+          const dAvgPts = currentGame.darren.handsWon ? (currentGame.darren.totalPoints / currentGame.darren.handsWon).toFixed(1) : '0.0';
+          const nAvgDw = currentGame.nancy.handsLost ? (currentGame.nancy.totalDeadwoodCaught / currentGame.nancy.handsLost).toFixed(1) : '0.0';
+          const dAvgDw = currentGame.darren.handsLost ? (currentGame.darren.totalDeadwoodCaught / currentGame.darren.handsLost).toFixed(1) : '0.0';
 
-        document.getElementById('gameStats').innerHTML = `
-          <table>
-            <tr><th>Metric</th><th>Nancy</th><th>Darren</th></tr>
-            <tr><td>Hands Won</td><td>${currentGame.nancy.handsWon}</td><td>${currentGame.darren.handsWon}</td></tr>
-            <tr><td>Hand Win %</td><td>${nWinPct}%</td><td>${dWinPct}%</td></tr>
-            <tr><td>Avg Pts / Hand Won</td><td>${nAvgPts}</td><td>${dAvgPts}</td></tr>
-            <tr><td>Avg Deadwood Caught</td><td>${nAvgDw} pts</td><td>${dAvgDw} pts</td></tr>
-          </table>
-        `;
-      } else {
-        document.getElementById('gameStats').innerText = "No hands played yet in current game.";
+          gameStatsEl.innerHTML = `
+            <table>
+              <tr><th>Metric</th><th>Nancy</th><th>Darren</th></tr>
+              <tr><td>Hands Won</td><td>${currentGame.nancy.handsWon}</td><td>${currentGame.darren.handsWon}</td></tr>
+              <tr><td>Hand Win %</td><td>${nWinPct}%</td><td>${dWinPct}%</td></tr>
+              <tr><td>Avg Pts / Hand Won</td><td>${nAvgPts}</td><td>${dAvgPts}</td></tr>
+              <tr><td>Avg Deadwood Caught</td><td>${nAvgDw} pts</td><td>${dAvgDw} pts</td></tr>
+            </table>
+          `;
+        } else {
+          gameStatsEl.innerText = "No hands played yet in current game.";
+        }
       }
 
-      const totalG = lifetime.gamesPlayed;
-      const totalLifetimeHands = lifetime.nancy.handsWon + lifetime.darren.handsWon;
-      const nGameWinPct = totalG ? ((lifetime.nancy.matchWins / totalG) * 100).toFixed(1) : '0.0';
-      const dGameWinPct = totalG ? ((lifetime.darren.matchWins / totalG) * 100).toFixed(1) : '0.0';
-      const nLifeHandWinPct = totalLifetimeHands ? ((lifetime.nancy.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
-      const dLifeHandWinPct = totalLifetimeHands ? ((lifetime.darren.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
+      const lifetimeStatsEl = document.getElementById('lifetimeStats');
+      if (lifetimeStatsEl) {
+        const totalG = lifetime.gamesPlayed;
+        const totalLifetimeHands = lifetime.nancy.handsWon + lifetime.darren.handsWon;
+        const nGameWinPct = totalG ? ((lifetime.nancy.matchWins / totalG) * 100).toFixed(1) : '0.0';
+        const dGameWinPct = totalG ? ((lifetime.darren.matchWins / totalG) * 100).toFixed(1) : '0.0';
+        const nLifeHandWinPct = totalLifetimeHands ? ((lifetime.nancy.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
+        const dLifeHandWinPct = totalLifetimeHands ? ((lifetime.darren.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
 
-      document.getElementById('lifetimeStats').innerHTML = `
-        <p style="margin-bottom:8px;"><strong>Total Games Played:</strong> ${totalG}</p>
-        <table>
-          <tr><th>Lifetime Metric</th><th>Nancy</th><th>Darren</th></tr>
-          <tr><td>Match Wins (Win %)</td><td>${lifetime.nancy.matchWins} (${nGameWinPct}%)</td><td>${lifetime.darren.matchWins} (${dGameWinPct}%)</td></tr>
-          <tr><td>Hand Win %</td><td>${nLifeHandWinPct}%</td><td>${dLifeHandWinPct}%</td></tr>
-          <tr><td>Biggest Hand Score</td><td>${lifetime.nancy.biggestHand} pts</td><td>${lifetime.darren.biggestHand} pts</td></tr>
-          <tr><td>Current Win Streak</td><td>${lifetime.nancy.currentStreak}</td><td>${lifetime.darren.currentStreak}</td></tr>
-          <tr><td>Longest Win Streak</td><td>${lifetime.nancy.maxStreak}</td><td>${lifetime.darren.maxStreak}</td></tr>
-        </table>
-      `;
+        lifetimeStatsEl.innerHTML = `
+          <p style="margin-bottom:8px;"><strong>Total Games Played:</strong> ${totalG}</p>
+          <table>
+            <tr><th>Lifetime Metric</th><th>Nancy</th><th>Darren</th></tr>
+            <tr><td>Match Wins (Win %)</td><td>${lifetime.nancy.matchWins} (${nGameWinPct}%)</td><td>${lifetime.darren.matchWins} (${dGameWinPct}%)</td></tr>
+            <tr><td>Hand Win %</td><td>${nLifeHandWinPct}%</td><td>${dLifeHandWinPct}%</td></tr>
+            <tr><td>Biggest Hand Score</td><td>${lifetime.nancy.biggestHand} pts</td><td>${lifetime.darren.biggestHand} pts</td></tr>
+            <tr><td>Current Win Streak</td><td>${lifetime.nancy.currentStreak}</td><td>${lifetime.darren.currentStreak}</td></tr>
+            <tr><td>Longest Win Streak</td><td>${lifetime.nancy.maxStreak}</td><td>${lifetime.darren.maxStreak}</td></tr>
+          </table>
+        `;
+      }
     }
 
     // Initialize application on load
