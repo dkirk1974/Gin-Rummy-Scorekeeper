@@ -943,67 +943,58 @@
       closeResetModal();
     }
 
-    const defaultLifetime = {
-      gamesPlayed: 0,
-      nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
-      darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
-    };
+// 1. Guaranteed default structures so your app never crashes on startup
+const defaultLifetime = {
+  gamesPlayed: 0,
+  nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
+  darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
+};
 
-    const defaultCurrentGame = {
-      nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
-      darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
-      handsPlayed: 0,
-      gameMode: '100',
-      customTarget: 250,
-      matchWinRecorded: false
-    };
+const defaultCurrentGame = {
+  nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
+  darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
+  handsPlayed: 0,
+  gameMode: '100',
+  customTarget: 250,
+  matchWinRecorded: false
+};
 
-// 1. Re-declare your global variables right away so the rest of your script can see them
-let lifetime, currentGame, handHistory;
-
-// 2. Safely initialize with defaults immediately so your UI renders your buttons
-try {
-  lifetime = JSON.parse(localStorage.getItem('gin_lifetime_nd')) || defaultLifetime;
-} catch (e) {
-  lifetime = defaultLifetime;
-}
+// 2. Immediately load from localStorage so variables are never undefined
+let lifetime = defaultLifetime;
+let currentGame = defaultCurrentGame;
+let handHistory = [];
 
 try {
-  currentGame = JSON.parse(localStorage.getItem('gin_currentgame_nd')) || defaultCurrentGame;
-} catch (e) {
-  currentGame = defaultCurrentGame;
-}
+  const savedLifetime = localStorage.getItem('gin_lifetime_nd');
+  if (savedLifetime) lifetime = JSON.parse(savedLifetime);
+} catch (e) { lifetime = defaultLifetime; }
 
 try {
-  handHistory = JSON.parse(localStorage.getItem('gin_history_nd')) || [];
-} catch (e) {
-  handHistory = [];
-}
+  const savedGame = localStorage.getItem('gin_currentgame_nd');
+  if (savedGame) currentGame = JSON.parse(savedGame);
+} catch (e) { currentGame = defaultCurrentGame; }
 
-if (currentGame.nancy && currentGame.nancy.consecutiveHandsWon === undefined) currentGame.nancy.consecutiveHandsWon = 0;
-if (currentGame.darren && currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
-if (currentGame.matchWinRecorded === undefined) currentGame.matchWinRecorded = false;
+try {
+  const savedHistory = localStorage.getItem('gin_history_nd');
+  if (savedHistory) handHistory = JSON.parse(savedHistory);
+} catch (e) { handHistory = []; }
 
-// 3. Centralized save function writing to Firestore and localStorage fallback
+// 3. Centralized save function targeting both LocalStorage and Firestore
 async function saveToStorage() {
   try {
-    // Keep local storage working as a fast backup
     localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
     localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
     localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
 
-    // Save to Firestore cloud database
     await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"), lifetime);
     await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"), currentGame);
     await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"), { items: handHistory });
-    
-    console.log("Cloud data saved successfully!");
   } catch (error) {
-    console.error("Error saving to cloud:", error);
+    console.error("Error saving data:", error);
   }
 }
 
-// 4. Silently sync with Firestore in the background without blocking your UI
+// 4. Background cloud sync
 async function syncCloudDataToApp() {
   try {
     const lifetimeSnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"));
@@ -1016,39 +1007,16 @@ async function syncCloudDataToApp() {
     if (historySnap.exists() && historySnap.data().items) {
       handHistory = historySnap.data().items;
     }
+    
+    // Refresh UI elements if a render function exists in your code
+    if (typeof updateUI === 'function') updateUI();
+    else if (typeof render === 'function') render();
   } catch (error) {
-    console.error("Cloud sync background error:", error);
+    console.error("Background sync error:", error);
   }
 }
 
 syncCloudDataToApp();
-
-      if (mode === '100') {
-        customWrapper.style.display = 'none';
-        badge.innerText = 'Target: First to 100 Points ▾';
-      } else if (mode === 'custom') {
-        customWrapper.style.display = 'block';
-        badge.innerText = `Target: First to ${currentGame.customTarget} Points ▾`;
-      } else if (mode === 'endless') {
-        customWrapper.style.display = 'none';
-        badge.innerText = 'Target: Endless / Open-Ended Game ▾';
-      }
-    }
-
-    function updateGameTypeLockState() {
-      const modeSelect = document.getElementById('gameModeSelect');
-      const customInput = document.getElementById('customTargetInput');
-      const hasStarted = currentGame.handsPlayed > 0;
-
-      modeSelect.disabled = hasStarted;
-      customInput.disabled = hasStarted;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      canvas = document.getElementById('fxCanvas');
-      ctx = canvas.getContext('2d');
-      resizeCanvas();
-
       document.getElementById('gameModeSelect').addEventListener('change', handleGameModeChange);
       document.getElementById('customTargetInput').addEventListener('change', handleGameModeChange);
       document.getElementById('modalGameModeSelect').addEventListener('change', handleModalGameModeChange);
