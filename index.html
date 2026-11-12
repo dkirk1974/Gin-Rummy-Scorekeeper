@@ -237,6 +237,7 @@
     <!-- SCORING VIEW -->
     <div id="scoringView" class="view-section active">
       <div class="card">
+        <div id="matchWinnerBanner" style="display:none; background: var(--success); color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 16px;"></div>
         <div class="score-board">
           <div class="player-box">
             <div class="player-name">Nancy</div>
@@ -313,7 +314,7 @@
           <button type="submit" class="btn">Submit Hand Score</button>
         </form>
         <button class="btn btn-secondary" onclick="undoLastHand()">Undo Last Hand</button>
-        <button class="btn btn-danger" onclick="resetCurrentGame()">Reset Current Game</button>
+        <button class="btn btn-danger" onclick="resetCurrentGame()">Start New Game</button>
       </div>
 
       <!-- Hand History Log -->
@@ -394,7 +395,6 @@
           await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"), lifetime);
           await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"), currentGame);
           await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"), { items: handHistory });
-          console.log("Data saved to cloud & local storage.");
         }
       } catch (error) {
         console.error("Error saving data:", error);
@@ -494,7 +494,7 @@
     function submitHand(event) {
       event.preventDefault();
       if (currentGame.matchWinRecorded) {
-        alert("Match has already been won! Reset the game to start a new match.");
+        alert("Match has already been won! Click 'Start New Game' to play again.");
         return;
       }
 
@@ -515,11 +515,9 @@
         loserDw = result.loserDw;
       }
 
-      // Record hand snapshot for undo support
       const handRecord = { type, winner, loser, pts, loserDw };
       handHistory.push(handRecord);
 
-      // Update current game scores
       currentGame[winner].score += pts;
       currentGame[winner].handsWon += 1;
       currentGame[winner].totalPoints += pts;
@@ -531,7 +529,6 @@
 
       currentGame.handsPlayed += 1;
 
-      // Check target
       const target = currentGame.gameMode === 'custom' ? currentGame.customTarget : parseInt(currentGame.gameMode);
       if (currentGame[winner].score >= target) {
         currentGame.matchWinRecorded = true;
@@ -562,7 +559,6 @@
       const lastHand = handHistory.pop();
       const { winner, loser, pts, loserDw } = lastHand;
 
-      // Reverse score updates
       currentGame[winner].score -= pts;
       currentGame[winner].handsWon -= 1;
       currentGame[winner].totalPoints -= pts;
@@ -572,7 +568,7 @@
       currentGame[loser].totalDeadwoodCaught -= loserDw;
 
       currentGame.handsPlayed = Math.max(0, currentGame.handsPlayed - 1);
-      currentGame.matchWinRecorded = false; // allow play to resume if target was met
+      currentGame.matchWinRecorded = false;
 
       saveToStorage();
       updateUI();
@@ -580,7 +576,7 @@
     }
 
     function resetCurrentGame() {
-      if (confirm("Are you sure you want to reset the current game?")) {
+      if (confirm("Are you sure you want to start a new game?")) {
         currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
         handHistory = [];
         saveToStorage();
@@ -598,11 +594,21 @@
       let targetVal = currentGame.gameMode === 'custom' ? currentGame.customTarget : currentGame.gameMode;
       document.getElementById('targetBadge').innerText = `Target: ${targetVal}`;
       document.getElementById('gameModeSelect').value = currentGame.gameMode;
+      
       if (currentGame.gameMode === 'custom') {
         document.getElementById('customTargetWrapper').style.display = 'block';
         document.getElementById('customTargetInput').value = currentGame.customTarget;
       } else {
         document.getElementById('customTargetWrapper').style.display = 'none';
+      }
+
+      const banner = document.getElementById('matchWinnerBanner');
+      if (currentGame.matchWinRecorded) {
+        let winnerName = currentGame.nancy.score >= targetVal ? 'Nancy' : 'Darren';
+        banner.style.display = 'block';
+        banner.innerText = `🎉 ${winnerName} has won the match! Click 'Start New Game' below to play again.`;
+      } else {
+        banner.style.display = 'none';
       }
     }
 
