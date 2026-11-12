@@ -1315,7 +1315,7 @@ function undoLastHand() {
       const nLifeAvgDw = lifetime.nancy.handsLost ? (lifetime.nancy.totalDeadwoodCaught / lifetime.nancy.handsLost).toFixed(1) : '0.0';
       const dLifeAvgDw = lifetime.darren.handsLost ? (lifetime.darren.totalDeadwoodCaught / lifetime.darren.handsLost).toFixed(1) : '0.0';
 
-      document.getElementById('lifetimeStats').innerHTML = `
+     document.getElementById('lifetimeStats').innerHTML = `
         <p style="margin-bottom:8px;"><strong>Total Games Played:</strong> ${totalG}</p>
         <table>
           <tr><th>Lifetime Metric</th><th>Nancy</th><th>Darren</th></tr>
