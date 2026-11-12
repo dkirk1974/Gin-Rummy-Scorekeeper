@@ -266,7 +266,6 @@
     <!-- SCORING VIEW -->
     <div id="scoringView" class="view-section active">
       <div class="card">
-        <div id="matchWinnerBanner" style="display:none; background: var(--success); color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 16px;"></div>
         <div class="score-board">
           <div class="player-box">
             <div class="player-name">Nancy</div>
@@ -413,20 +412,25 @@
       if (savedHistory) handHistory = JSON.parse(savedHistory);
     } catch (e) { handHistory = []; }
 
-    // Native Web Audio API Sound Effects
+    // Robust Web Audio API Sound Effects (Handles browser gesture requirements)
+    let sharedAudioCtx = null;
     function playSound(type) {
       try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
-        const ctx = new AudioContext();
-        
+        if (!sharedAudioCtx) sharedAudioCtx = new AudioContext();
+        if (sharedAudioCtx.state === 'suspended') {
+          sharedAudioCtx.resume();
+        }
+
+        const ctx = sharedAudioCtx;
         if (type === 'score') {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.setValueAtTime(0.1, ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
           osc.start();
           osc.stop(ctx.currentTime + 0.15);
@@ -438,7 +442,7 @@
             o.connect(g);
             g.connect(ctx.destination);
             o.frequency.setValueAtTime(freq, now + i * 0.1);
-            g.gain.setValueAtTime(0.1, now + i * 0.1);
+            g.gain.setValueAtTime(0.12, now + i * 0.1);
             g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.25);
             o.start(now + i * 0.1);
             o.stop(now + i * 0.1 + 0.25);
@@ -575,7 +579,7 @@
     function submitHand(event) {
       event.preventDefault();
       if (currentGame.matchWinRecorded) {
-        alert("Match has already been won! Click 'Start New Game' to play again.");
+        showModal("Match Finished", "Match has already been won! Click 'Start New Game' to play again.");
         return;
       }
 
@@ -587,14 +591,14 @@
         loser = winner === 'nancy' ? 'darren' : 'nancy';
         loserDw = parseInt(document.getElementById('ginDefenderValue').value);
         if (isNaN(loserDw)) {
-          alert("Please enter defender deadwood points.");
+          showModal("Input Required", "Please enter defender deadwood points.");
           return;
         }
         pts = loserDw + 25;
       } else {
         const result = calculateKnockOutcome();
         if (!result) {
-          alert("Please check your knock values.");
+          showModal("Invalid Input", "Please check your knock values.");
           return;
         }
         winner = result.winner;
@@ -619,7 +623,6 @@
 
       currentGame.handsPlayed += 1;
 
-      // Check for milestones / biggest hand record
       let milestoneMsg = "";
       if (pts > lifetime[winner].biggestHand) {
         lifetime[winner].biggestHand = pts;
@@ -636,7 +639,7 @@
         lifetime[winner].maxStreak = Math.max(lifetime[winner].maxStreak, lifetime[winner].currentStreak);
         lifetime[loser].currentStreak = 0;
 
-        showModal("🎉 Match Won!", `${winner.toUpperCase()} has won the match with ${currentGame[winner].score} points!`);
+        showModal("🎉 Match Won!", `${winner.toUpperCase()} has won the match with ${currentGame[winner].score} points! Click 'Start New Game' to play again.`);
       } else if (milestoneMsg) {
         showModal("Milestone Reached!", milestoneMsg);
       }
@@ -650,7 +653,7 @@
 
     function undoLastHand() {
       if (handHistory.length === 0) {
-        alert("No hands to undo.");
+        showModal("Notice", "No hands to undo.");
         return;
       }
 
@@ -670,113 +673,4 @@
 
       saveToStorage();
       updateUI();
-      renderHandHistory();
-    }
-
-    function resetCurrentGame() {
-      if (confirm("Are you sure you want to start a new game?")) {
-        currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
-        handHistory = [];
-        saveToStorage();
-        updateUI();
-        renderHandHistory();
-      }
-    }
-
-    function updateUI() {
-      document.getElementById('nancyScore').innerText = currentGame.nancy.score;
-      document.getElementById('darrenScore').innerText = currentGame.darren.score;
-      document.getElementById('nancyHands').innerText = currentGame.nancy.handsWon;
-      document.getElementById('darrenHands').innerText = currentGame.darren.handsWon;
-
-      let targetVal = currentGame.gameMode === 'custom' ? currentGame.customTarget : currentGame.gameMode;
-      document.getElementById('targetBadge').innerText = `Target: ${targetVal}`;
-      document.getElementById('gameModeSelect').value = currentGame.gameMode;
-      
-      if (currentGame.gameMode === 'custom') {
-        document.getElementById('customTargetWrapper').style.display = 'block';
-        document.getElementById('customTargetInput').value = currentGame.customTarget;
-      } else {
-        document.getElementById('customTargetWrapper').style.display = 'none';
-      }
-
-      const banner = document.getElementById('matchWinnerBanner');
-      if (currentGame.matchWinRecorded) {
-        let winnerName = currentGame.nancy.score >= targetVal ? 'Nancy' : 'Darren';
-        banner.style.display = 'block';
-        banner.innerText = `🎉 ${winnerName} has won the match! Click 'Start New Game' below to play again.`;
-      } else {
-        banner.style.display = 'none';
-      }
-    }
-
-    function renderHandHistory() {
-      const container = document.getElementById('handHistoryList');
-      if (handHistory.length === 0) {
-        container.innerHTML = "No hands recorded yet.";
-        return;
-      }
-
-      let html = `<table><tr><th>#</th><th>Winner</th><th>Type</th><th>Pts</th></tr>`;
-      handHistory.forEach((h, index) => {
-        html += `<tr>
-          <td>${index + 1}</td>
-          <td style="text-transform: capitalize; font-weight: 600;">${h.winner}</td>
-          <td style="text-transform: uppercase;">${h.type}</td>
-          <td>+${h.pts}</td>
-        </tr>`;
-      });
-      html += `</table>`;
-      container.innerHTML = html;
-    }
-
-    function updateStatsDisplay() {
-      const totalH = currentGame.handsPlayed;
-      if (totalH > 0) {
-        const nWinPct = ((currentGame.nancy.handsWon / totalH) * 100).toFixed(1);
-        const dWinPct = ((currentGame.darren.handsWon / totalH) * 100).toFixed(1);
-        const nAvgPts = currentGame.nancy.handsWon ? (currentGame.nancy.totalPoints / currentGame.nancy.handsWon).toFixed(1) : '0.0';
-        const dAvgPts = currentGame.darren.handsWon ? (currentGame.darren.totalPoints / currentGame.darren.handsWon).toFixed(1) : '0.0';
-        const nAvgDw = currentGame.nancy.handsLost ? (currentGame.nancy.totalDeadwoodCaught / currentGame.nancy.handsLost).toFixed(1) : '0.0';
-        const dAvgDw = currentGame.darren.handsLost ? (currentGame.darren.totalDeadwoodCaught / currentGame.darren.handsLost).toFixed(1) : '0.0';
-
-        document.getElementById('gameStats').innerHTML = `
-          <table>
-            <tr><th>Metric</th><th>Nancy</th><th>Darren</th></tr>
-            <tr><td>Hands Won</td><td>${currentGame.nancy.handsWon}</td><td>${currentGame.darren.handsWon}</td></tr>
-            <tr><td>Hand Win %</td><td>${nWinPct}%</td><td>${dWinPct}%</td></tr>
-            <tr><td>Avg Pts / Hand Won</td><td>${nAvgPts}</td><td>${dAvgPts}</td></tr>
-            <tr><td>Avg Deadwood Caught</td><td>${nAvgDw} pts</td><td>${dAvgDw} pts</td></tr>
-          </table>
-        `;
-      } else {
-        document.getElementById('gameStats').innerText = "No hands played yet in current game.";
-      }
-
-      const totalG = lifetime.gamesPlayed;
-      const totalLifetimeHands = lifetime.nancy.handsWon + lifetime.darren.handsWon;
-      const nGameWinPct = totalG ? ((lifetime.nancy.matchWins / totalG) * 100).toFixed(1) : '0.0';
-      const dGameWinPct = totalG ? ((lifetime.darren.matchWins / totalG) * 100).toFixed(1) : '0.0';
-      const nLifeHandWinPct = totalLifetimeHands ? ((lifetime.nancy.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
-      const dLifeHandWinPct = totalLifetimeHands ? ((lifetime.darren.handsWon / totalLifetimeHands) * 100).toFixed(1) : '0.0';
-
-      document.getElementById('lifetimeStats').innerHTML = `
-        <p style="margin-bottom:8px;"><strong>Total Games Played:</strong> ${totalG}</p>
-        <table>
-          <tr><th>Lifetime Metric</th><th>Nancy</th><th>Darren</th></tr>
-          <tr><td>Match Wins (Win %)</td><td>${lifetime.nancy.matchWins} (${nGameWinPct}%)</td><td>${lifetime.darren.matchWins} (${dGameWinPct}%)</td></tr>
-          <tr><td>Hand Win %</td><td>${nLifeHandWinPct}%</td><td>${dLifeHandWinPct}%</td></tr>
-          <tr><td>Biggest Hand Score</td><td>${lifetime.nancy.biggestHand} pts</td><td>${lifetime.darren.biggestHand} pts</td></tr>
-          <tr><td>Current Win Streak</td><td>${lifetime.nancy.currentStreak}</td><td>${lifetime.darren.currentStreak}</td></tr>
-          <tr><td>Longest Win Streak</td><td>${lifetime.nancy.maxStreak}</td><td>${lifetime.darren.maxStreak}</td></tr>
-        </table>
-      `;
-    }
-
-    // Initialize application on load
-    updateUI();
-    renderHandHistory();
-    syncCloudDataToApp();
-  </script>
-</body>
-</html>
+      render
