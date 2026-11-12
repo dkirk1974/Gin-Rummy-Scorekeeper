@@ -984,7 +984,26 @@ if (currentGame.nancy && currentGame.nancy.consecutiveHandsWon === undefined) cu
 if (currentGame.darren && currentGame.darren.consecutiveHandsWon === undefined) currentGame.darren.consecutiveHandsWon = 0;
 if (currentGame.matchWinRecorded === undefined) currentGame.matchWinRecorded = false;
 
-// 3. Silently sync with Firestore in the background without blocking your UI
+// 3. Centralized save function writing to Firestore and localStorage fallback
+async function saveToStorage() {
+  try {
+    // Keep local storage working as a fast backup
+    localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
+    localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
+    localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
+
+    // Save to Firestore cloud database
+    await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"), lifetime);
+    await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"), currentGame);
+    await window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"), { items: handHistory });
+    
+    console.log("Cloud data saved successfully!");
+  } catch (error) {
+    console.error("Error saving to cloud:", error);
+  }
+}
+
+// 4. Silently sync with Firestore in the background without blocking your UI
 async function syncCloudDataToApp() {
   try {
     const lifetimeSnap = await window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"));
@@ -1003,23 +1022,6 @@ async function syncCloudDataToApp() {
 }
 
 syncCloudDataToApp();
-    console.log("Cloud data saved successfully!");
-  } catch (error) {
-    console.error("Error saving to cloud:", error);
-  }
-}
-
-    function handleGameModeChange() {
-      const mode = document.getElementById('gameModeSelect').value;
-      const customInput = document.getElementById('customTargetInput');
-      const customWrapper = document.getElementById('customTargetWrapper');
-      const badge = document.getElementById('targetBadge');
-
-      currentGame.gameMode = mode;
-      if (mode === 'custom') {
-        currentGame.customTarget = parseInt(customInput.value) || 250;
-      }
-      saveToStorage();
 
       if (mode === '100') {
         customWrapper.style.display = 'none';
