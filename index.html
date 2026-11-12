@@ -576,9 +576,11 @@
 
     function submitHand(event) {
       event.preventDefault();
+
+      // If previous match was won, automatically roll over into a fresh game before recording this hand
       if (currentGame.matchWinRecorded) {
-        showModal("Match Finished", "Match has already been won! Click 'Start New Game' to play again.");
-        return;
+        currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
+        handHistory = [];
       }
 
       const type = document.getElementById('typeSelect').value;
@@ -637,7 +639,7 @@
         lifetime[winner].maxStreak = Math.max(lifetime[winner].maxStreak, lifetime[winner].currentStreak);
         lifetime[loser].currentStreak = 0;
 
-        showModal("🎉 Match Won!", `${winner.toUpperCase()} has won the match with ${currentGame[winner].score} points! Click 'Start New Game' to play again.`);
+        showModal("🎉 Match Won!", `${winner.toUpperCase()} has won the match with ${currentGame[winner].score} points!`);
       } else if (milestoneMsg) {
         showModal("Milestone Reached!", milestoneMsg);
       }
@@ -681,13 +683,12 @@
     }
 
     function resetCurrentGame() {
-      if (confirm("Are you sure you want to start a new game?")) {
-        currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
-        handHistory = [];
-        saveToStorage();
-        updateUI();
-        renderHandHistory();
-      }
+      // Direct reset without confirmation popup
+      currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
+      handHistory = [];
+      saveToStorage();
+      updateUI();
+      renderHandHistory();
     }
 
     function updateUI() {
@@ -705,11 +706,6 @@
         document.getElementById('customTargetInput').value = currentGame.customTarget;
       } else {
         document.getElementById('customTargetWrapper').style.display = 'none';
-      }
-
-      const submitBtn = document.getElementById('submitHandBtn');
-      if (submitBtn) {
-        submitBtn.style.display = currentGame.matchWinRecorded ? 'none' : 'block';
       }
     }
 
@@ -783,7 +779,7 @@
       }
     }
 
-    // Programmatic Event Listener Wiring (Guarantees all buttons & tabs respond)
+    // Programmatic Event Listener Wiring
     document.addEventListener('DOMContentLoaded', () => {
       // Tab Navigation
       document.querySelectorAll('.tab-btn').forEach(btn => {
