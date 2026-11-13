@@ -4,6 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gin Rummy Scorer</title>
+  
+  <!-- Firebase SDK Imports -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8Hvv2y9eKQKI_Za9BRxDko2AOnWzLNn8",
+      authDomain: "gin-rummy-score.firebaseapp.com",
+      projectId: "gin-rummy-score",
+      storageBucket: "gin-rummy-score.firebasestorage.app",
+      messagingSenderId: "194625048091",
+      appId: "1:194625048091:web:0695f21dc0b4727993f2be",
+      measurementId: "G-03WGFDJHV1"
+    };
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      window.db = db;
+      window.fsDoc = doc;
+      window.fsSetDoc = setDoc;
+      window.fsGetDoc = getDoc;
+      window.dispatchEvent(new Event('firebase-ready'));
+    } catch (err) {
+      console.error("Firebase init error:", err);
+    }
+  </script>
 
   <style>
     :root {
@@ -175,7 +204,7 @@
     }
 
     /* Popup Modal Overlay */
-    #modalOverlay {
+    #modalOverlay, #confirmOverlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5);
@@ -184,6 +213,7 @@
       align-items: center;
       z-index: 1000;
     }
+
     .modal-content {
       background: white;
       padding: 24px;
@@ -192,6 +222,12 @@
       width: 90%;
       text-align: center;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
     }
 
     /* Tables */
@@ -220,22 +256,37 @@
   <div id="modalOverlay">
     <div class="modal-content">
       <h3 id="modalTitle" style="color: var(--primary); margin-bottom: 10px;">Celebration</h3>
-      <p id="modalMessage" style="margin-bottom: 20px; font-size: 1rem; color: var(--text);"></p>
-      <button class="btn" id="modalCloseBtn">Awesome!</button>
+      <p id="modalMessage" style="margin-bottom: 20px; font-size: 1rem; color: var(--text); white-space: pre-line;"></p>
+      <button type="button" class="btn" id="modalCloseBtn">Awesome!</button>
+    </div>
+  </div>
+
+  <!-- Custom Confirmation Modal for Deleting All Records -->
+  <div id="confirmOverlay">
+    <div class="modal-content">
+      <h3 style="color: var(--danger); margin-bottom: 10px;">Delete All Records?</h3>
+      <p style="margin-bottom: 20px; font-size: 0.95rem; color: var(--text);">Are you sure you want to permanently delete all historical lifetime stats and records? This cannot be undone.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Yes, Delete All</button>
+      </div>
     </div>
   </div>
 
   <div class="container">
     <header>
       <h1>Gin Rummy Scorer</h1>
-      <span id="targetBadge" style="font-weight: 600; font-size: 0.9rem; color: var(--text-light);">Target: 100</span>
+      <div style="text-align: right;">
+        <span id="targetBadge" style="font-weight: 600; font-size: 0.9rem; color: var(--text-light); display: block;">Target: 100</span>
+        <span id="syncStatusBadge" style="font-size: 0.75rem; color: var(--success);">Cloud Ready</span>
+      </div>
     </header>
 
     <!-- Navigation Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="scoring">Scoring</button>
-      <button class="tab-btn" data-tab="records">Records & Stats</button>
-      <button class="tab-btn" data-tab="rules">Rules</button>
+      <button type="button" class="tab-btn active" data-tab="scoring">Scoring</button>
+      <button type="button" class="tab-btn" data-tab="records">Records & Stats</button>
+      <button type="button" class="tab-btn" data-tab="rules">Rules</button>
     </div>
 
     <!-- SCORING VIEW -->
@@ -351,41 +402,72 @@
   </div>
 
   <script>
-    // 1. Guaranteed Default Structures
-    const defaultLifetime = {
-      gamesPlayed: 0,
-      nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
-      darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
-    };
+    // 1. Default Schema Factories (Prevents reference mutation & missing keys)
+    function createDefaultLifetime() {
+      return {
+        gamesPlayed: 0,
+        nancy: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 },
+        darren: { matchWins: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, biggestHand: 0, currentStreak: 0, maxStreak: 0 }
+      };
+    }
 
-    const defaultCurrentGame = {
-      nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
-      darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
-      handsPlayed: 0,
-      gameMode: '100',
-      customTarget: 250,
-      matchWinRecorded: false
-    };
+    function createDefaultCurrentGame() {
+      return {
+        nancy: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
+        darren: { score: 0, handsWon: 0, totalPoints: 0, totalDeadwoodCaught: 0, handsLost: 0, consecutiveHandsWon: 0 },
+        handsPlayed: 0,
+        gameMode: '100',
+        customTarget: 250,
+        matchWinRecorded: false
+      };
+    }
 
-    // 2. Local Storage Initialization
-    let lifetime = defaultLifetime;
-    let currentGame = defaultCurrentGame;
+    // Safe Deep Merge Helpers (Prevents old localStorage schemas from crashing the app)
+    function normalizeLifetime(data) {
+      const def = createDefaultLifetime();
+      if (!data || typeof data !== 'object') return def;
+      return {
+        gamesPlayed: Number(data.gamesPlayed) || 0,
+        nancy: { ...def.nancy, ...(data.nancy || {}) },
+        darren: { ...def.darren, ...(data.darren || {}) }
+      };
+    }
+
+    function normalizeCurrentGame(data) {
+      const def = createDefaultCurrentGame();
+      if (!data || typeof data !== 'object') return def;
+      return {
+        nancy: { ...def.nancy, ...(data.nancy || {}) },
+        darren: { ...def.darren, ...(data.darren || {}) },
+        handsPlayed: Number(data.handsPlayed) || 0,
+        gameMode: data.gameMode || '100',
+        customTarget: Number(data.customTarget) || 250,
+        matchWinRecorded: Boolean(data.matchWinRecorded)
+      };
+    }
+
+    // 2. Local Storage Initialization with Schema Normalization
+    let lifetime = createDefaultLifetime();
+    let currentGame = createDefaultCurrentGame();
     let handHistory = [];
     let pendingResetOnClose = false;
 
     try {
       const savedLifetime = localStorage.getItem('gin_lifetime_nd');
-      if (savedLifetime) lifetime = JSON.parse(savedLifetime);
-    } catch (e) { lifetime = defaultLifetime; }
+      if (savedLifetime) lifetime = normalizeLifetime(JSON.parse(savedLifetime));
+    } catch (e) { lifetime = createDefaultLifetime(); }
 
     try {
       const savedGame = localStorage.getItem('gin_currentgame_nd');
-      if (savedGame) currentGame = JSON.parse(savedGame);
-    } catch (e) { currentGame = defaultCurrentGame; }
+      if (savedGame) currentGame = normalizeCurrentGame(JSON.parse(savedGame));
+    } catch (e) { currentGame = createDefaultCurrentGame(); }
 
     try {
       const savedHistory = localStorage.getItem('gin_history_nd');
-      if (savedHistory) handHistory = JSON.parse(savedHistory);
+      if (savedHistory) {
+        const parsed = JSON.parse(savedHistory);
+        handHistory = Array.isArray(parsed) ? parsed : [];
+      }
     } catch (e) { handHistory = []; }
 
     // Robust Web Audio API Sound Effects
@@ -445,14 +527,67 @@
       }
     }
 
-    // 3. Centralized Save Function
-    function saveToStorage() {
+    // 3. Centralized Save Function (LocalStorage + Non-blocking Firebase Firestore)
+    async function saveToStorage() {
       try {
         localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
         localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
         localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
+      } catch (e) {
+        console.error("LocalStorage save error:", e);
+      }
+
+      try {
+        if (window.db && window.fsSetDoc) {
+          const badge = document.getElementById('syncStatusBadge');
+          if (badge) badge.innerText = "Syncing...";
+          await Promise.all([
+            window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "lifetime"), lifetime),
+            window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "currentGame"), currentGame),
+            window.fsSetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"), { items: handHistory })
+          ]);
+          if (badge) badge.innerText = "Cloud Synced";
+        }
       } catch (error) {
-        console.error("Error saving data:", error);
+        console.error("Firebase save error:", error);
+        const badge = document.getElementById('syncStatusBadge');
+        if (badge) badge.innerText = "Saved Locally";
+      }
+    }
+
+    // 4. Background Cloud Sync
+    async function syncCloudDataToApp() {
+      try {
+        if (!window.db || !window.fsGetDoc) return;
+        const badge = document.getElementById('syncStatusBadge');
+        if (badge) badge.innerText = "Loading Cloud...";
+
+        const [lifetimeSnap, gameSnap, historySnap] = await Promise.all([
+          window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "lifetime")),
+          window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "currentGame")),
+          window.fsGetDoc(window.fsDoc(window.db, "ginRummy", "handHistory"))
+        ]);
+
+        if (lifetimeSnap.exists()) lifetime = normalizeLifetime(lifetimeSnap.data());
+        if (gameSnap.exists()) currentGame = normalizeCurrentGame(gameSnap.data());
+        if (historySnap.exists() && Array.isArray(historySnap.data().items)) {
+          handHistory = historySnap.data().items;
+        }
+
+        localStorage.setItem('gin_lifetime_nd', JSON.stringify(lifetime));
+        localStorage.setItem('gin_currentgame_nd', JSON.stringify(currentGame));
+        localStorage.setItem('gin_history_nd', JSON.stringify(handHistory));
+
+        updateUI();
+        renderHandHistory();
+        if (document.getElementById('recordsView').classList.contains('active')) {
+          updateStatsDisplay();
+        }
+        if (badge) badge.innerText = "Cloud Synced";
+      } catch (error) {
+        console.error("Background sync error:", error);
+        const badge = document.getElementById('syncStatusBadge');
+        if (badge) badge.innerText = "Offline Mode";
       }
     }
 
@@ -571,6 +706,12 @@
 
       currentGame.handsPlayed += 1;
 
+      // Update Lifetime Hand Stats
+      lifetime[winner].handsWon += 1;
+      lifetime[winner].totalPoints += pts;
+      lifetime[loser].handsLost += 1;
+      lifetime[loser].totalDeadwoodCaught += loserDw;
+
       let milestoneMsgs = [];
       if (pts > lifetime[winner].biggestHand) {
         lifetime[winner].biggestHand = pts;
@@ -619,6 +760,11 @@
         lifetime[winner].currentStreak = Math.max(0, lifetime[winner].currentStreak - 1);
       }
 
+      lifetime[winner].handsWon = Math.max(0, lifetime[winner].handsWon - 1);
+      lifetime[winner].totalPoints = Math.max(0, lifetime[winner].totalPoints - pts);
+      lifetime[loser].handsLost = Math.max(0, lifetime[loser].handsLost - 1);
+      lifetime[loser].totalDeadwoodCaught = Math.max(0, lifetime[loser].totalDeadwoodCaught - loserDw);
+
       currentGame[winner].score -= pts;
       currentGame[winner].handsWon -= 1;
       currentGame[winner].totalPoints -= pts;
@@ -636,20 +782,31 @@
     }
 
     function resetCurrentGame() {
-      currentGame = JSON.parse(JSON.stringify(defaultCurrentGame));
+      const preservedMode = currentGame.gameMode;
+      const preservedCustom = currentGame.customTarget;
+      currentGame = createDefaultCurrentGame();
+      currentGame.gameMode = preservedMode;
+      currentGame.customTarget = preservedCustom;
       handHistory = [];
       saveToStorage();
       updateUI();
       renderHandHistory();
     }
 
-    function clearAllLifetimeRecords() {
-      if (confirm("Are you sure you want to delete all historical lifetime stats and records? This cannot be undone.")) {
-        lifetime = JSON.parse(JSON.stringify(defaultLifetime));
-        saveToStorage();
-        updateStatsDisplay();
-        showModal("Cleared", "All lifetime records have been successfully reset.");
-      }
+    function openDeleteConfirmModal() {
+      document.getElementById('confirmOverlay').style.display = 'flex';
+    }
+
+    function closeDeleteConfirmModal() {
+      document.getElementById('confirmOverlay').style.display = 'none';
+    }
+
+    function executeDeleteAllRecords() {
+      closeDeleteConfirmModal();
+      lifetime = createDefaultLifetime();
+      saveToStorage();
+      updateStatsDisplay();
+      showModal("Cleared", "All lifetime records have been permanently deleted.");
     }
 
     function updateUI() {
@@ -758,11 +915,19 @@
 
       document.getElementById('handForm').addEventListener('submit', submitHand);
       document.getElementById('undoBtn').addEventListener('click', undoLastHand);
-      document.getElementById('clearLifetimeBtn').addEventListener('click', clearAllLifetimeRecords);
+      document.getElementById('clearLifetimeBtn').addEventListener('click', openDeleteConfirmModal);
+      document.getElementById('confirmCancelBtn').addEventListener('click', closeDeleteConfirmModal);
+      document.getElementById('confirmDeleteBtn').addEventListener('click', executeDeleteAllRecords);
       document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
 
       updateUI();
       renderHandHistory();
+
+      if (window.db) {
+        syncCloudDataToApp();
+      } else {
+        window.addEventListener('firebase-ready', syncCloudDataToApp, { once: true });
+      }
     }
 
     if (document.readyState === 'loading') {
